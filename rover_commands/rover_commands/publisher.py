@@ -7,7 +7,7 @@ class TrajectoryPublisher(Node):
     def __init__(self):
         super().__init__('trajectory_publisher')
 
-        self.pub = self.create_publisher(Twist, 'velocity', 10) # a queue size of 10 usually works!
+        self.pub = self.create_publisher(Twist, 'position', 10) # a queue size of 10 usually works!
 
         self.get_logger().info('Publisher node has been started.')
 

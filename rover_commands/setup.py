@@ -22,6 +22,7 @@ setup(
         'console_scripts': [
             'publisher = rover_commands.publisher:main',
             'subscriber = rover_commands.subscriber:main',
+            'check_position_server = rover_commands.check_position_server:main',
         ],
     },
 )
