@@ -27,14 +27,7 @@ class TrajectorySubscriber(Node):
     def send_request(self, x, z):
         self.request.x = x
         self.request.z = z
-        self.future = self.client.call_async(self.request)
-        '''while not self.future.done():
-            self.future = self.cli.call_async(self.req)
-            self.get_logger().info(f'{self.future.done()}')
-            '''
-
-        rclpy.spin_until_future_complete(self, self.future)
-        return self.future.result()
+        return self.client.call_async(self.request)
 
     def listener_callback(self, msg):
         self.get_logger().info('Response')
@@ -43,7 +36,9 @@ class TrajectorySubscriber(Node):
         self.position['ry'] += msg.angular.y
 
         self.get_logger().info('Response')
-        response = self.send_request(self.position['x'], self.position['z'])
+        future = self.send_request(self.position['x'], self.position['z'])
+        rclpy.spin_until_future_complete(self, future)
+        response = future.result()
         is_allowed = response.is_allowed
         suggestion = response.suggestion
         self.get_logger().info('Response')

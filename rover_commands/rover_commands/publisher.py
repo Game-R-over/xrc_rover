@@ -7,18 +7,17 @@ class TrajectoryPublisher(Node):
     def __init__(self):
         super().__init__('trajectory_publisher')
 
-        self.pub = self.create_publisher(Twist, 'position', 10) # a queue size of 10 usually works!
-
+        self.publisher_ = self.create_publisher(Twist, 'position', 10) # a queue size of 10 usually works!
         self.get_logger().info('Publisher node has been started.')
 
-        while(True):
+        while True:
             cmd = self.cmd_acquisition()
-            self.pub.publish(cmd)
+            self.publisher_.publish(cmd)
 
 
     # Function that prompts user for a direction input, and sends the command
     def cmd_acquisition(self):
-        command = input("Enter command (w/a/s/d/t/y - max 2 characters): ")
+        command = input('Enter command (w/a/s/d/t/y - max 2 characters): ')
         cmd = Twist()
         if command == "w":
             cmd.linear.x = 1.0
