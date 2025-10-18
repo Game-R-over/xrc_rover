@@ -21,6 +21,7 @@ find_package(rosidl_default_generators REQUIRED)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/CheckPosition.srv"
+  "msg/OperateTurnstile.msg"
 )
 
 if(BUILD_TESTING)
