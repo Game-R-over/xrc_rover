@@ -20,7 +20,7 @@ find_package(geometry_msgs REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
-  "srv/CheckPosition.srv"
+  "msg/MoveData.msg"
 )
 
 if(BUILD_TESTING)
