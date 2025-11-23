@@ -19,7 +19,7 @@ class FSMNodeSubscriber:
         )
 
 
-class FSMNode(Node):
+class FSMNode(Node, State):
 
     subscribers = {}
     move_delta = MoveData()
@@ -27,12 +27,18 @@ class FSMNode(Node):
     def __init__(self):
         super().__init__('fsm_node')
 
-        self.add_subscription(
-            MoveData,
-            'user_input',
-            self.user_input_sub_callback,
-            default_data = MoveData()
-        )
+        try:
+            self.add_subscription(
+                MoveData,
+                'user_input',
+                lambda msg: self.__call__(
+                    'user_input_sub_callback',
+                    msg
+                ),
+                default_data = MoveData()
+            )
+        except:
+            ...
 
         self.get_logger().info('[FSMNode] User input subscriber node has been started.')
 
@@ -55,12 +61,38 @@ class FSMNode(Node):
         self.move_delta.angle = msg.angle - self.subscribers['user_input'].data.angle
         self.subscribers['user_input'].data = msg
         self.get_logger().info(f'Delta : {self.move_delta.speed}, {self.move_delta.angle}')
+        if msg.speed == 3:
+            self.__switch_state__('SyncState')
+        if msg.speed == 5:
+            self.__switch_state__('FailState')
+
+class OKState(FSMNode):
+    ...
+
+class SyncState(FSMNode):
+    ...
+
+class FailState(FSMNode):
+    def __init__(self):
+        print('NOPE')
+        rclpy.shutdown()
 
 def main(args=None):
+
     rclpy.init(args=args)
-    node = FSMNode()
-    rclpy.spin(node)
-    node.destroy_node()
+
+    FSM = StateMachine(
+        ['subscribers', 'move_delta'],
+        ['add_subscription', 'user_input_sub_callback']
+    ) \
+        .add_state(OKState) \
+        .add_state(SyncState) \
+        .add_state(FailState)
+
+    FSM.spin('OKState')
+
+    rclpy.spin(FSM.active)
+    FSM.active.destroy_node()
     rclpy.shutdown()
 
 if __name__ == '__main__':
