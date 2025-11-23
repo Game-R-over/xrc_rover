@@ -4,46 +4,43 @@ from custom_msg.msg import MoveData
 
 
 class GamePadPublisher(Node):
-    user_input_pub=None
-    data=None
+    user_input_pub = None
+    data = MoveData()
+    
     def __init__(self):
 
-        super().__init__('game_pad')
+        super().__init__('gamepad')
 
         self.user_input_pub = self.create_publisher(MoveData, 'user_input', 10) 
-        # a queue size of 10 usually works!
-        self.get_logger().info('Publisher node has been started.')
-        data = MoveData()
+        self.get_logger().info('[GAMEPAD] Publisher node has been started.')
+
         while True:
-            cmd = self.cmd_acquisition(data)
-            self.user_input_pub.publish(cmd)
-            self.get_logger().info(f'speed:{data.speed} angle:{data.angle}')
-            
-            #interdit publish none
+            if self.cmd_acquisition():
+                break
+            self.user_input_pub.publish(self.data)
+            self.get_logger().info(f'Current data:\n\tspeed:{self.data.speed}\n\tangle:{self.data.angle}')
 
-
-    # Function that prompts user for a direction input, and sends the command
-    def cmd_acquisition(self,data ):
-        command = input('Enter command (w/a/s/d/t/y - max 2 characters): ')
-        if command == "w":
-            data.speed += 1.0
-            return data
-        if command == "a":
-            data.speed -= 1.0
-            return data
-        if command == "s":
-           data.angle -= 1.0
-           return data
-        if command == "d":
-            data.angle += 1.0
-            return data
-        return data
+    def cmd_acquisition(self):
+        command = input('Enter command (w/a/s/d, q to quit): ')
+        if command == 'w':
+            self.data.speed += 1.0
+            return False
+        if command == 'a':
+            self.data.speed -= 1.0
+            return False
+        if command == 's':
+            self.data.angle -= 1.0
+            return False
+        if command == 'd':
+            self.data.angle += 1.0
+            return False
+        if command == 'q':
+            return True
 
 
 def main(args=None):
-    rclpy.init(args=args)   # Init ROS python
-    node = GamePadPublisher()  # Create a Node instance
-    rclpy.spin(node)  # Run the node in a Thread
+    rclpy.init(args=args)
+    node = GamePadPublisher()
     node.destroy_node()
     rclpy.shutdown()
 
