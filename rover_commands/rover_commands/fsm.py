@@ -18,16 +18,28 @@ class FSMNodeSubscriber:
             queue_size
         )
 
+class FSMNodePublisher:
+    publisher = None
+
+    def __init__(self, create_pub_callback, datatype, topic, queue_size = 10):
+        self.publisher = create_pub_callback(
+            datatype,
+            topic,
+            queue_size
+        )
+
 
 class FSMNode(Node, State):
 
     subscribers = {}
+    publishers = {}
+
     move_delta = MoveData()
 
     def __init__(self):
         super().__init__('fsm_node')
 
-        try:
+        if True:
             self.add_subscription(
                 MoveData,
                 'user_input',
@@ -37,8 +49,12 @@ class FSMNode(Node, State):
                 ),
                 default_data = MoveData()
             )
-        except:
-            ...
+            self.add_publisher(
+                MoveData,
+                'wheel_update'
+            )
+        else:
+            print('A')
 
         self.get_logger().info('[FSMNode] User input subscriber node has been started.')
 
@@ -55,12 +71,24 @@ class FSMNode(Node, State):
             default_data
         ))
 
+    def add_publisher(self, datatype, topic, queue_size = 10):
+        if topic in self.publishers:
+            raise ValueError(f'Trying to add already existing publisher {topic}.')
+
+        self.publishers[topic] = (FSMNodePublisher(
+            self.create_publisher,
+            datatype,
+            topic,
+            queue_size
+        ))
+
     def user_input_sub_callback(self, msg):
         self.get_logger().info(f'Response: {msg.speed}, {msg.angle}')
         self.move_delta.speed = msg.speed - self.subscribers['user_input'].data.speed 
         self.move_delta.angle = msg.angle - self.subscribers['user_input'].data.angle
         self.subscribers['user_input'].data = msg
         self.get_logger().info(f'Delta : {self.move_delta.speed}, {self.move_delta.angle}')
+        self.publishers['wheel_update'].publisher.publish(self.move_delta)
         if msg.speed == 3:
             self.__switch_state__('SyncState')
         if msg.speed == 5:

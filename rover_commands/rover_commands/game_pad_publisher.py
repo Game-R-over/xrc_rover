@@ -25,10 +25,10 @@ class GamePadPublisher(Node):
         if command == 'w':
             self.data.speed += 1.0
             return False
-        if command == 'a':
+        if command == 's':
             self.data.speed -= 1.0
             return False
-        if command == 's':
+        if command == 'a':
             self.data.angle -= 1.0
             return False
         if command == 'd':

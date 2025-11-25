@@ -20,18 +20,16 @@ class WheelManager(Node):
 
     def listener_callback(self, msg):
         self.get_logger().info('Response')
-        self.deltadata.speed= msg.speed
-        self.deltadata.angle= msg.angle
+        self.deltadata['speed'] = msg.speed
+        self.deltadata['angle'] = msg.angle
 
-        send_to_esp(msg)
-        
-        self.get_logger().info(f'Received command: dletaspeed={msg.speed}, deltaangle={msg.linear.z}')
-    
-    def send_to_esp(info_to_send):
+        self.send_to_esp(msg)
+
+        self.get_logger().info(f'Received command: deltaspeed={msg.speed}, deltaangle={msg.angle}')
+
+    def send_to_esp(self, info_to_send):
         #info à envoyer à flow
-        
-    
-    
+        ...
 
 def main(args=None):
     rclpy.init(args=args)
