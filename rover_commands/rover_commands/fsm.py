@@ -39,23 +39,6 @@ class FSMNode(Node, State):
     def __init__(self):
         super().__init__('fsm_node')
 
-        if True:
-            self.add_subscription(
-                MoveData,
-                'user_input',
-                lambda msg: self.__call__(
-                    'user_input_sub_callback',
-                    msg
-                ),
-                default_data = MoveData()
-            )
-            self.add_publisher(
-                MoveData,
-                'wheel_update'
-            )
-        else:
-            print('A')
-
         self.get_logger().info('[FSMNode] User input subscriber node has been started.')
 
     def add_subscription(self, datatype, topic, callback, queue_size = 10, default_data = None):
@@ -118,8 +101,24 @@ def main(args=None):
         .add_state(FailState)
 
     FSM.spin('OKState')
+    FSM.call(
+        'add_subscription',
+        MoveData,
+        'user_input',
+        lambda msg: FSM.call(
+            'user_input_sub_callback',
+            msg
+        ),
+        default_data = MoveData()
+    )
+    FSM.call(
+        'add_publisher',
+        MoveData,
+        'wheel_update'
+    )
 
     rclpy.spin(FSM.active)
+
     FSM.active.destroy_node()
     rclpy.shutdown()
 
