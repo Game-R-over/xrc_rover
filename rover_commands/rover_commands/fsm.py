@@ -3,6 +3,7 @@ from .fsm_lib.fsm import StateMachine, State
 import rclpy
 from rclpy.node import Node
 
+from std_msgs.msg import Empty
 from custom_msg.msg import MoveData
 
 class FSMNodeSubscriber:
@@ -85,7 +86,7 @@ class SyncState(FSMNode):
 
 class FailState(FSMNode):
     def __init__(self):
-        print('NOPE')
+        self.publishers['emergency_shutdown'].publisher.publish(Empty())
         rclpy.shutdown()
 
 def main(args=None):
@@ -115,6 +116,11 @@ def main(args=None):
         'add_publisher',
         MoveData,
         'wheel_update'
+    )
+    FSM.call(
+        'add_publisher',
+        Empty,
+        'emergency_shutdown'
     )
 
     rclpy.spin(FSM.active)
