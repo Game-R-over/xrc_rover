@@ -1,2 +1,2 @@
-float64 speed
+int64 speed
 float64 angle

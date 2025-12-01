@@ -1,8 +1,13 @@
 import rclpy
 from rclpy.node import Node
 from custom_msg.msg import MoveData
+from .utils.esp import SerialBridge
 
 class WheelManager(Node):
+
+    subscription = None
+    deltadata = {}
+    serial_bridge = None
 
     def __init__(self):
         super().__init__('wheel_manager')
@@ -14,8 +19,10 @@ class WheelManager(Node):
             10
         )
 
-        self.get_logger().info('Wheel Manager node has been started.')
+        self.serial_bridge = SerialBridge(self.get_logger)
         self.deltadata= {}
+
+        self.get_logger().info('Wheel Manager node has been started.')
 
 
     def listener_callback(self, msg):
@@ -28,8 +35,8 @@ class WheelManager(Node):
         self.get_logger().info(f'Received command: deltaspeed={msg.speed}, deltaangle={msg.angle}')
 
     def send_to_esp(self, info_to_send):
-        #info à envoyer à flow
-        ...
+        self.serial_bridge.send_motor(speed)
+        self.serial_bridge.send_servo(angle)
 
 def main(args=None):
     rclpy.init(args=args)
