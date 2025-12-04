@@ -35,8 +35,8 @@ class WheelManager(Node):
         self.get_logger().info(f'Received command: deltaspeed={msg.speed}, deltaangle={msg.angle}')
 
     def send_to_esp(self, info_to_send):
-        self.serial_bridge.send_motor(speed)
-        self.serial_bridge.send_servo(angle)
+        self.serial_bridge.send_motor(info_to_send.speed)
+        self.serial_bridge.send_servo(info_to_send.angle)
 
 def main(args=None):
     rclpy.init(args=args)
