@@ -23,10 +23,10 @@ class GamePadPublisher(Node):
     def cmd_acquisition(self):
         command = input('Enter command (w/a/s/d, q to quit): ')
         if command == 'w':
-            self.data.speed += 1.0
+            self.data.speed += 1
             return False
         if command == 's':
-            self.data.speed -= 1.0
+            self.data.speed -= 1
             return False
         if command == 'a':
             self.data.angle -= 1.0
