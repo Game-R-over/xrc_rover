@@ -35,8 +35,6 @@ class FSMNode(Node, State):
     subscribers = {}
     publishers = {}
 
-    move_delta = MoveData()
-
     def __init__(self):
         super().__init__('fsm_node')
 
@@ -67,15 +65,11 @@ class FSMNode(Node, State):
         ))
 
     def user_input_sub_callback(self, msg):
-        self.get_logger().info(f'Response: {msg.speed}, {msg.angle}')
-        self.move_delta.speed = msg.speed - self.subscribers['user_input'].data.speed 
-        self.move_delta.angle = msg.angle - self.subscribers['user_input'].data.angle
+        self.get_logger().info(f'User Input: {msg.speed}, {msg.angle}')
         self.subscribers['user_input'].data = msg
-        self.get_logger().info(f'Delta : {self.move_delta.speed}, {self.move_delta.angle}')
-        self.publishers['wheel_update'].publisher.publish(self.move_delta)
-        if msg.speed == 3:
-            self.__switch_state__('SyncState')
+        self.publishers['wheel_update'].publisher.publish(msg)
         if msg.speed == 5:
+            self.get_logger().warning('Shutting down FSM')
             self.__switch_state__('FailState')
 
 class OKState(FSMNode):
@@ -94,7 +88,7 @@ def main(args=None):
     rclpy.init(args=args)
 
     FSM = StateMachine(
-        ['subscribers', 'move_delta'],
+        ['subscribers'],
         ['add_subscription', 'user_input_sub_callback']
     ) \
         .add_state(OKState) \

@@ -27,7 +27,7 @@ class SerialBridge():
         self.send(f'M {motor} {speed}')
  
     def send_servo(self, angle: float, servo: int = 1):
-        self.send(f'M {servo} {angle}')
+        self.send(f'S {servo} {angle}')
 
     def send(self, data):
         try:
