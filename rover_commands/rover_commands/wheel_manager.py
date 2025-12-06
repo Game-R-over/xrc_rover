@@ -7,7 +7,7 @@ from std_msgs.msg import Empty
 class WheelManager(Node):
 
     subscription = None
-    data = {}
+    data = None
     serial_bridge = None
 
     def __init__(self):
@@ -28,30 +28,25 @@ class WheelManager(Node):
         )
 
         self.serial_bridge = SerialBridge(self.get_logger)
-        self.data= {}
+        self.data = MoveData()
 
         self.get_logger().info('Wheel Manager node has been started.')
 
 
     def listener_callback(self, msg):
         self.get_logger().info('Response')
-        self.data['speed'] = msg.speed
-        self.data['angle'] = msg.angle
-
+        self.data = msg
         self.send_to_esp(msg)
 
         self.get_logger().info(f'Received command: speed={msg.speed}, angle={msg.angle}')
    
     def listener_callback_shutdown(self,msg):
-        self.data['speed'] =0
+        self.data.speed = 0
         
         self.send_to_esp(self.data)
         
-        self.get_logger().info(f'Received command: speed={0}, angle={self.data['angle']}')
+        self.get_logger().info('Sending shutdown speed to ESP')
    
-
-          
-        
     def send_to_esp(self, info_to_send):
         self.serial_bridge.send_motor(info_to_send.speed)
         self.serial_bridge.send_servo(info_to_send.angle)

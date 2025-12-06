@@ -44,25 +44,25 @@ class FSMNode(Node, State):
         if topic in self.subscribers:
             raise ValueError(f'Trying to add already existing subscriber {topic}.')
 
-        self.subscribers[topic] = (FSMNodeSubscriber(
+        self.subscribers[topic] = FSMNodeSubscriber(
             self.create_subscription,
             datatype,
             topic,
             callback,
             queue_size,
             default_data
-        ))
+        )
 
     def add_publisher(self, datatype, topic, queue_size = 10):
         if topic in self.publishers:
             raise ValueError(f'Trying to add already existing publisher {topic}.')
 
-        self.publishers[topic] = (FSMNodePublisher(
+        self.publishers[topic] = FSMNodePublisher(
             self.create_publisher,
             datatype,
             topic,
             queue_size
-        ))
+        )
 
     def user_input_sub_callback(self, msg):
         self.get_logger().info(f'User Input: {msg.speed}, {msg.angle}')
@@ -80,8 +80,11 @@ class SyncState(FSMNode):
 
 class FailState(FSMNode):
     def __init__(self):
+        super().__init__()
         self.publishers['emergency_shutdown'].publisher.publish(Empty())
-        rclpy.shutdown()
+
+    def user_input_sub_callback(self, msg):
+        self.get_logger().info(f'Ignoring user Input: {msg.speed}, {msg.angle}')
 
 def main(args=None):
 
