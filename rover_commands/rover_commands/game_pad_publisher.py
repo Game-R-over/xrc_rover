@@ -7,8 +7,8 @@ class GamePadPublisher(Node):
     user_input_pub = None
     data = MoveData()
     
-    MAX_SPEED=10
-    MAX_ANGLE=10
+    MAX_SPEED = 10
+    MAX_ANGLE = 10
 
     def __init__(self):
 
@@ -27,13 +27,13 @@ class GamePadPublisher(Node):
         command = input('Enter command (w/a/s/d, q to quit): ')
         if command == 'w':
             if self.data.speed < self.MAX_SPEED:
-                self.data.speed += 1
+                self.data.speed += 1.0
             else:
                 self.get_logger().warning('Maximal speed reached') 
             return False
         if command == 's':
             if self.data.speed > 0:
-                self.data.speed -= 1
+                self.data.speed -= 1.0
             else:
                 self.get_logger().warning('Minimal speed reached') 
             return False

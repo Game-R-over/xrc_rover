@@ -20,12 +20,10 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'publisher = rover_commands.publisher:main',
-            'subscriber = rover_commands.subscriber:main',
-            'check_position_server = rover_commands.check_position_server:main',
             'fsm_node = rover_commands.fsm:main',
             'gamepad = rover_commands.game_pad_publisher:main',
             'wheel_manager = rover_commands.wheel_manager:main',
+            'effective_check = rover_commands.effective_check:main',
         ],
     },
 )

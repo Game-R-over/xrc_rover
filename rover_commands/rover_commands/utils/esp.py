@@ -2,9 +2,16 @@ import serial
 import threading
 
 class SerialBridge():
-    def __init__(self, logger_callback, port = '/dev/ttyUSB0'):
+
+    get_logger = None
+    data_callback = None
+
+    serial_conn = None
+
+    def __init__(self, logger_callback, data_callback, port = '/dev/ttyUSB0'):
 
         self.get_logger = logger_callback
+        self.data_callback = data_callback
 
         try:
             self.serial_conn = serial.Serial(
@@ -25,6 +32,7 @@ class SerialBridge():
     
     def send_motor(self, speed: int, motor: int = 1):
         self.send(f'M {motor} {speed}')
+        self.send(f'E {motor}')
  
     def send_servo(self, angle: float, servo: int = 1):
         self.send(f'S {servo} {angle}')
@@ -42,6 +50,8 @@ class SerialBridge():
                 if self.serial_conn.in_waiting > 0:
                     data = self.serial_conn.read()
                     self.get_logger().debug(f'{data}')
+                    self.data_callback(data)
+
             except Exception as e:
                 self.get_logger().error(f"Serial read error: {e}")
                 break
