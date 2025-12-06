@@ -5,12 +5,17 @@ FROM ghcr.io/epflxplore/docker_commons:humble-desktop
 
 ARG DEBIAN_FRONTEND=noninteractive
 
+RUN curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key \
+    -o /usr/share/keyrings/ros-archive-keyring.gpg
+RUN echo "deb [signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu jammy main" \
+    > /etc/apt/sources.list.d/ros2.list
+
 # Install Rover packages
 RUN apt-get update && apt-get upgrade -y
 RUN apt install -y curl
 
 # Install python libs
-python3 -m pip install pyserial
+RUN python3 -m pip install pyserial
 
 # Add USB rules
 RUN echo 'SUBSYSTEM=="usb", ATTRS{idVendor}=="03e7", MODE="0666"' | sudo tee /etc/udev/rules.d/80-movidius.rules
@@ -26,7 +31,7 @@ COPY . .
 WORKDIR /home/$USERNAME/dev_ws
 
 # Clean up
-RUN sudo rm -rf /var/lib/apt/lists/*
+RUN rm -rf /var/lib/apt/lists/*
 
 # Remove all the confidential Xplore source code from the image
-RUN sudo rm -rf /home/$USERNAME/dev_ws/src/*
+RUN rm -rf /home/$USERNAME/dev_ws/src/*
