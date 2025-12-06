@@ -2,11 +2,12 @@ import rclpy
 from rclpy.node import Node
 from custom_msg.msg import MoveData
 from .utils.esp import SerialBridge
+from std_msgs.msg import Empty
 
 class WheelManager(Node):
 
     subscription = None
-    deltadata = {}
+    data = {}
     serial_bridge = None
 
     def __init__(self):
@@ -19,21 +20,38 @@ class WheelManager(Node):
             10
         )
 
+        self.subscription = self.create_subscription(
+            Empty,
+            'emergency_shutdown',
+            self.listener_callback_shutdown,
+            10
+        )
+
         self.serial_bridge = SerialBridge(self.get_logger)
-        self.deltadata= {}
+        self.data= {}
 
         self.get_logger().info('Wheel Manager node has been started.')
 
 
     def listener_callback(self, msg):
         self.get_logger().info('Response')
-        self.deltadata['speed'] = msg.speed
-        self.deltadata['angle'] = msg.angle
+        self.data['speed'] = msg.speed
+        self.data['angle'] = msg.angle
 
         self.send_to_esp(msg)
 
-        self.get_logger().info(f'Received command: deltaspeed={msg.speed}, deltaangle={msg.angle}')
+        self.get_logger().info(f'Received command: speed={msg.speed}, angle={msg.angle}')
+   
+    def listener_callback_shutdown(self,msg):
+        self.data['speed'] =0
+        
+        self.send_to_esp(self.data)
+        
+        self.get_logger().info(f'Received command: speed={0}, angle={self.data['angle']}')
+   
 
+          
+        
     def send_to_esp(self, info_to_send):
         self.serial_bridge.send_motor(info_to_send.speed)
         self.serial_bridge.send_servo(info_to_send.angle)
