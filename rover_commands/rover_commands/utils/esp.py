@@ -39,7 +39,7 @@ class SerialBridge():
 
     def send(self, data):
         try:
-            self.serial_conn.write(f'{data.encode()}\n')
+            self.serial_conn.write(f'{data}\n'.encode())
             self.get_logger().info(f"Sent command: {data}")
         except Exception as e:
             self.get_logger().error(f"Failed to send command: {e}")
@@ -49,7 +49,7 @@ class SerialBridge():
         while True: 
             try:
                 if self.serial_conn.in_waiting > 0:
-                    data_fragement = self.serial_conn.read()
+                    data_fragement = self.serial_conn.read().decode()
                     data += data_fragement
                     if data_fragement == '\n' and len(data) > 1:
                         self.get_logger().info(f'Recieved "{data}" from ESP')
