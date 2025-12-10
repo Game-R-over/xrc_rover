@@ -71,9 +71,9 @@ class EffectiveCheck(Node):
         self.timer.cancel()
         self.timer = None
 
-        if speed_diff.speed != 0:
+        '''if speed_diff.speed != 0:
             self.wheel_diff_publisher.publish(speed_diff)
-            self.get_logger().info(f'Effective displacement {speed_diff.speed}')
+            self.get_logger().info(f'Effective displacement {speed_diff.speed}')'''
 
     def timeout_check(self):
         self.timer = None

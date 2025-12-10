@@ -81,11 +81,14 @@ class WheelManager(Node):
 
     def send_to_effective(self, data):
         datas = data.split()
+        if len(datas) == 0:
+            return
+
         if datas[0] == 'ERR':
             self.get_logger().error(' '.join(datas[1:]))
             return
 
-        if datas[1] == 'RPM':
+        if len(datas) > 2 and datas[1] == 'RPM':
             speed = Speed()
             speed.speed = float(datas[2])
             self.effective_wheel_publisher.publish(speed)
