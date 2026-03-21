@@ -11,12 +11,18 @@ class Vec2:
     def rSquared(self) -> float:
         return self.x * self.x + self.y * self.y
 
+    def r(self):
+        return math.sqrt(self.rSquared())
+
+    def phi(self):
+        return math.atan2(self.y, self.x)
+
     def str(self) -> str:
         return f'( {self.x}, {self.y} )';
 
 class ArmData:
-    lengths: list[float] = [10, 10, 10]
-    angles: list[float] = [0, 0, 0]
+    length: float = 10
+    angles: list[float] = [0, 0]
 
     def cumulativeAngle(self, num: int) -> float:
         angle = 0.0
@@ -26,61 +32,43 @@ class ArmData:
 
     def computeXY(self) -> Vec2:
         return Vec2(
-            self.lengths[0] * math.cos(self.cumulativeAngle(0))
-                + self.lengths[1] * math.cos(self.cumulativeAngle(1))
-                + self.lengths[2] * math.cos(self.cumulativeAngle(2)),
-            self.lengths[0] * math.sin(self.cumulativeAngle(0))
-                + self.lengths[1] * math.sin(self.cumulativeAngle(1))
-                + self.lengths[2] * math.sin(self.cumulativeAngle(2))
+            self.length * math.cos(self.cumulativeAngle(0))
+                + self.length * math.cos(self.cumulativeAngle(1)),
+            self.length * math.sin(self.cumulativeAngle(0))
+                + self.length * math.sin(self.cumulativeAngle(1))
         )
 
-    def computeAngles(self, coords: Vec2, phi: float):
+    def computeAngles(self, coords: Vec2):
 
-        wristCoords = Vec2(
-            coords.x - self.lengths[2] * math.cos(phi),
-            coords.y - self.lengths[2] * math.sin(phi)
-        )
+        k = coords.r() / (2 * self.length)
+        if k > 1:
+            coords.x /= k
+            coords.y /= k
 
-        cos1 = (
-            wristCoords.rSquared() - self.lengths[0] * self.lengths[0] - self.lengths[1] * self.lengths[1]
-        ) / (2 * self.lengths[0] * self.lengths[1])
+        # Angle between the two segments
+        cos_beta = (coords.rSquared() - 2 * self.length * self.length) / (2 * self.length * self.length)
+        self.angles[1] = -math.acos(cos_beta)
 
-        if abs(cos1) > 1:
-            raise Exception("Coordinates are too far (out of reach)")
+        # Base angle
+        k1 = self.length + self.length * math.cos(self.angles[1])
+        k2 = self.length * math.sin(self.angles[1])
 
-        sin1 = math.sqrt(1 - cos1 * cos1)
-        theta1 = math.atan2(sin1, cos1)
-
-        theta0 = math.atan2(wristCoords.y, wristCoords.x) - math.atan2(
-            self.lengths[1] * sin1,
-            self.lengths[0] + self.lengths[1] * cos1
-        )
-
-        theta2 = phi - theta0 - theta1
-
-        self.angles = [theta0, theta1, theta2]
+        self.angles[0] = coords.phi() - math.atan2(k2, k1)
+        self.angles[1] *= -1
 
     def angleStr(self, angle: float):
         return '0' if angle == 0 else f'{angle / math.pi}π'
 
     def str(self):
         return f'''Angles:
-        \tθ1:\t\t{self.angleStr(self.angles[0])}
-        \tθ2:\t\t{self.angleStr(self.angles[1])}
-        \tθ3:\t\t{self.angleStr(self.angles[2])}
-
-        Cumulative angles:
-        \tθ1:\t\t{self.angleStr(self.cumulativeAngle(0))}
-        \tθ1 + θ2:\t{self.angleStr(self.cumulativeAngle(1))}
-        \tθ1 + θ2 + θ3:\t{self.angleStr(self.cumulativeAngle(2))}''';
+        \tα:\t\t{self.angleStr(self.angles[0])}
+        \tβ:\t\t{self.angleStr(self.angles[1])}
+        '''
 
 if __name__ == '__main__':
     arm = ArmData()
-    arm.angles[0] = math.pi / 2
-    arm.angles[2] = -math.pi / 2
     arm.computeAngles(
-        Vec2(10, 10),
-        math.pi / 4
+        Vec2(20, 12)
     )
 
     print(arm.computeXY().str())
