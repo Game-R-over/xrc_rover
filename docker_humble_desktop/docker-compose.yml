@@ -1,0 +1,143 @@
+# ============================================
+# EXPLICATION : docker-compose.yml
+# ============================================
+# Ce fichier remplace les longues commandes "docker run"
+# Il définit comment lancer votre conteneur de manière
+# simple et reproductible
+
+version: '3.8'
+
+services:
+  # ==========================================
+  # EXPLICATION : Nom du service
+  # ==========================================
+  # "rover_dev" est le nom de votre conteneur
+  # Vous pouvez le changer si vous voulez
+  rover_dev:
+    
+    # ========================================
+    # EXPLICATION : Build de l'image
+    # ========================================
+    build:
+      # Contexte : dossier contenant le Dockerfile
+      context: .
+      # Chemin exact du Dockerfile
+      dockerfile: Dockerfile
+    
+    # Nom de l'image créée
+    # Gardez le même que votre build.sh pour cohérence
+    image: ghcr.io/epflxplore/base:humble-desktop
+    
+    # Nom du conteneur en cours d'exécution
+    container_name: base_humble_desktop
+    
+    # ========================================
+    # EXPLICATION : Réseau
+    # ========================================
+    # network_mode: host
+    # → Partage le réseau de votre PC avec le conteneur
+    # → Simplifie ÉNORMÉMENT ROS2 (pas de config DDS)
+    # → Topics ROS2 visibles partout automatiquement
+    network_mode: host
+    
+    # ========================================
+    # EXPLICATION : Accès matériel
+    # ========================================
+    # privileged: true
+    # → Donne accès complet aux périphériques USB
+    # → Nécessaire pour Arduino, capteurs, caméras
+    # → ATTENTION : moins sécurisé, mais indispensable
+    #   pour développement robotique
+    privileged: true
+    
+    # devices: monte les périphériques du PC dans le conteneur
+    # /dev : dossier Linux contenant TOUS les périphériques
+    devices:
+      - /dev:/dev
+    
+    # ========================================
+    # EXPLICATION : Variables d'environnement
+    # ========================================
+    environment:
+      # === AFFICHAGE GRAPHIQUE (GUI) ===
+      # DISPLAY : où afficher les fenêtres graphiques
+      # ${DISPLAY} prend la valeur de votre PC (généralement :0)
+      - DISPLAY=${DISPLAY}
+      
+      # QT_X11_NO_MITSHM : fix pour applications Qt
+      # Évite des bugs d'affichage dans Gazebo/RViz
+      - QT_X11_NO_MITSHM=1
+      
+      # XAUTHORITY : fichier d'autorisation X11
+      # Permet au conteneur d'afficher des fenêtres
+      - XAUTHORITY=/tmp/.docker.xauth
+      
+      # === ROS2 ===
+      # ROS_DOMAIN_ID : ID réseau ROS2 (doit être identique
+      # entre tous les conteneurs/robots qui communiquent)
+      - ROS_DOMAIN_ID=42
+      
+      # === GAZEBO ===
+      # GAZEBO_MODEL_PATH : où chercher les modèles 3D custom
+      - GAZEBO_MODEL_PATH=/home/xplore/dev_ws/src/models
+    
+    # ========================================
+    # EXPLICATION : Volumes (montages)
+    # ========================================
+    volumes:
+      # === X11 : AFFICHAGE GRAPHIQUE ===
+      # /tmp/.X11-unix : socket X11 pour GUI
+      # :rw = read-write (lecture-écriture)
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      
+      # XAUTH : fichier d'autorisation X11
+      - /tmp/.docker.xauth:/tmp/.docker.xauth:rw
+      
+      # /run/user/1000/at-spi : accessibilité (pour GUI)
+      - /run/user/1000/at-spi:/run/user/1000/at-spi
+      
+      # === CODE SOURCE ===
+      # CRUCIAL : Monte votre code LOCAL dans le conteneur
+      # Changements sur votre PC → visibles immédiatement dans conteneur
+      # 
+      # Structure :
+      #   Votre PC              →  Conteneur
+      #   ./                    →  /home/xplore/dev_ws/src
+      #   (dossier parent)         (workspace ROS2)
+      #
+      # Utilisez $(pwd)/.. pour monter le dossier parent
+      - ../:/home/xplore/dev_ws/src:rw
+      
+      # === PERSISTANCE ===
+      # Volume nommé : garde les données entre redémarrages
+      # Le dossier home de l'utilisateur est préservé :
+      # - Historique bash
+      # - Configuration personnelle
+      # - Cache de build
+      - base_humble_desktop_home_volume:/home/xplore
+    
+    # ========================================
+    # EXPLICATION : Terminal interactif
+    # ========================================
+    # stdin_open + tty : permet d'utiliser le terminal
+    # Équivalent de -it dans "docker run -it"
+    stdin_open: true
+    tty: true
+    
+    # ========================================
+    # EXPLICATION : Commande de démarrage
+    # ========================================
+    # Commande exécutée au lancement du conteneur
+    # bash : ouvre un terminal interactif
+    command: bash
+
+# ============================================
+# EXPLICATION : Volumes nommés
+# ============================================
+# Déclaration des volumes pour persistance
+# Les données dans ces volumes survivent aux
+# redémarrages et suppressions de conteneurs
+volumes:
+  base_humble_desktop_home_volume:
+    # driver: local = stocké sur votre disque dur
+    driver: local
