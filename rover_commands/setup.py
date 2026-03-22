@@ -22,8 +22,7 @@ setup(
         'console_scripts': [
             'fsm_node = rover_commands.fsm:main',
             'gamepad = rover_commands.game_pad_publisher:main',
-            'wheel_manager = rover_commands.wheel_manager:main',
-            'effective_check = rover_commands.effective_check:main',
+            'wheels_manager = rover_commands.wheels_manager:main',
         ],
     },
 )

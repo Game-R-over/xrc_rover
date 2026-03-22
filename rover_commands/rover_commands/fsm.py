@@ -68,14 +68,17 @@ class FSMNode(Node, State):
         self.get_logger().info(f'User Input: {msg.speed}, {msg.angle}')
         self.subscribers['user_input'].data = msg
         self.publishers['wheel_update'].publisher.publish(msg)
-        '''if msg.speed == 5:
+        if msg.speed == 200:
             self.get_logger().warning('Shutting down FSM')
-            self.__switch_state__('FailState')'''
+            self.__switch_state__('FailState')
 
-class OKState(FSMNode):
+class BootingState(FSMNode):
     ...
 
-class SyncState(FSMNode):
+class ManualState(FSMNode):
+    ...
+
+class AutomaticState(FSMNode):
     ...
 
 class FailState(FSMNode):
@@ -94,11 +97,12 @@ def main(args=None):
         ['subscribers'],
         ['add_subscription', 'user_input_sub_callback']
     ) \
-        .add_state(OKState) \
-        .add_state(SyncState) \
+        .add_state(BootingState) \
+        .add_state(ManualState) \
+        .add_state(AutomaticState) \
         .add_state(FailState)
 
-    FSM.spin('OKState')
+    FSM.spin('BootingState')
     FSM.call(
         'add_subscription',
         MoveData,
