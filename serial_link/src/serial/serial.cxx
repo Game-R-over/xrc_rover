@@ -4,7 +4,7 @@ Serial::Serial(
 	std::string file
 ) :
 	m_serial_port(
-		open(file.c_str(), O_RDWR/* | O_NOCTTY | O_NONBLOCK*/)
+		open(file.c_str(), O_RDWR | O_NOCTTY /*| O_NONBLOCK*/)
 	)
 {
 	this->set_tty_cflags();
@@ -36,7 +36,9 @@ std::expected<
 	Empty,
 	std::string
 > Serial::swrite(std::string data) {
-	write(m_serial_port, data.c_str(), sizeof(data.c_str()));
+	if(write(m_serial_port, data.c_str(), data.size()) == -1) {
+		return std::unexpected("Error trying to write to serial.");
+	}
 	return Empty{};
 }
 
@@ -44,11 +46,11 @@ std::expected<
 	Result,
 	std::string
 > Serial::sread() {
-	char read_buf[32];
+	char read_buf[64];
 
-	memset(&read_buf, '\0', sizeof(read_buf));
+	memset(read_buf, '\0', sizeof(read_buf));
 
-	int num_bytes = read(m_serial_port, &read_buf, sizeof(read_buf));
+	int num_bytes = read(m_serial_port, read_buf, sizeof(read_buf));
 
 	if(num_bytes < 0) {
 		return std::unexpected(
@@ -59,8 +61,15 @@ std::expected<
 	return std::string(read_buf);
 }
 
+void Serial::sclose() {
+	if (m_serial_port >= 0) {
+        close(m_serial_port);
+        m_serial_port = -1;
+    }
+}
+
 Serial::~Serial() {
-	close(m_serial_port);
+	this->sclose();
 }
 
 void Serial::set_tty_cflags() {
@@ -87,7 +96,7 @@ void Serial::set_tty_oflags() {
 	m_tty.c_oflag &= ~ONLCR;	// Prevent conversion of newline to carriage return/line feed
 }
 void Serial::set_c_cc() {
-	m_tty.c_cc[VTIME] = 10;	// Wait for up to 1s (10 deciseconds), returning as soon as any data is received.
+	m_tty.c_cc[VTIME] = 1;	// Wait for up to .1s, returning as soon as any data is received.
 	m_tty.c_cc[VMIN] = 0;
 }
 void Serial::set_baud_rate() {

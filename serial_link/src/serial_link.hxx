@@ -10,8 +10,7 @@ class SerialLinkNode : public rclcpp::Node {
 public:
 	SerialLinkNode(std::string name, std::string file) :
 		Node(name),
-		_serial(std::make_shared<Serial>(file)),
-		_running(true)
+		_serial(std::make_shared<Serial>(file))
 	{
 		auto result = this->_serial->spin();
 		if(!result) {
@@ -23,9 +22,14 @@ public:
 
 	~SerialLinkNode() {
         this->_running = false;
+
+		if(_serial) {
+			_serial->swrite("\n");
+		}
         if(_serial_read_thread.joinable()) {
             _serial_read_thread.join();
         }
+		this->_serial->sclose();
     }
 
 	void async_read() {
@@ -45,5 +49,5 @@ public:
 protected:
 	std::shared_ptr<Serial> _serial;
 	std::thread _serial_read_thread;
-	std::atomic<bool> _running;
+	std::atomic<bool> _running = true;
 };

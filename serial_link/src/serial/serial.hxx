@@ -28,6 +28,8 @@ public:
 		std::string
 	> sread();
 
+	void sclose();
+
 	~Serial();
 
 private:

@@ -22,6 +22,10 @@ find_package(rosidl_default_generators REQUIRED)
 rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/MoveData.msg"
   "msg/Speed.msg"
+  "msg/ServoAngle.msg"
+  "msg/DCSpeed.msg"
+  "msg/UltrasonicDistance.msg"
+  "msg/MPUData.msg"
 )
 
 if(BUILD_TESTING)
