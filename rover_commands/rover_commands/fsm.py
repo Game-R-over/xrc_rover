@@ -29,7 +29,6 @@ class FSMNodePublisher:
             queue_size
         )
 
-
 class FSMNode(Node, State):
 
     subscribers = {}
@@ -65,21 +64,26 @@ class FSMNode(Node, State):
         )
 
     def user_input_sub_callback(self, msg):
-        self.get_logger().info(f'User Input: {msg.speed}, {msg.angle}')
-        self.subscribers['user_input'].data = msg
-        self.publishers['wheel_update'].publisher.publish(msg)
-        if msg.speed == 200:
-            self.get_logger().warning('Shutting down FSM')
-            self.__switch_state__('FailState')
+        # Do nothing (overriden in ManualState and AutomaticState)
+        ...
 
 class BootingState(FSMNode):
     ...
 
 class ManualState(FSMNode):
-    ...
+    def user_input_sub_callback(self, msg):
+        self.get_logger().info(f'User Input: {msg.speed}, {msg.angle}')
+        self.subscribers['user_input'].data = msg
+        self.publishers['move_update'].publisher.publish(msg)
+
+        # TODO: Remove this test
+        if msg.speed == 200:
+            self.get_logger().warning('Shutting down FSM')
+            self.__switch_state__('FailState')
 
 class AutomaticState(FSMNode):
-    ...
+    def user_input_sub_callback(self, msg):
+        self.get_logger().info(f'[IGNORED] User Input: {msg.speed}, {msg.angle} in automatic state.')
 
 class FailState(FSMNode):
     def __init__(self):
@@ -87,14 +91,14 @@ class FailState(FSMNode):
         self.publishers['emergency_shutdown'].publisher.publish(Empty())
 
     def user_input_sub_callback(self, msg):
-        self.get_logger().info(f'Ignoring user Input: {msg.speed}, {msg.angle}')
+        self.get_logger().info(f'[IGNORED] User Input: {msg.speed}, {msg.angle} in fail state.')
 
 def main(args=None):
 
     rclpy.init(args=args)
 
     FSM = StateMachine(
-        ['subscribers'],
+        ['subscribers', 'publishers'],
         ['add_subscription', 'user_input_sub_callback']
     ) \
         .add_state(BootingState) \
@@ -116,7 +120,7 @@ def main(args=None):
     FSM.call(
         'add_publisher',
         MoveData,
-        'wheel_update'
+        'move_update'
     )
     FSM.call(
         'add_publisher',

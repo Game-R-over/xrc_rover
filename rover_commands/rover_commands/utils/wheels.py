@@ -1,44 +1,79 @@
 import math
 
-def rover_drive(x, y, Vmax, Kmax, W, Lf, Lr):
+def rover_drive(x, y, Vmax, Kmax, W, Lf, Lr, theta_max_deg=30):
 
     v = Vmax * y
-    k = Kmax * x
+    k_desired = Kmax * x
 
-    # If the curvature is small enough, we just go straight
+    theta_max = math.radians(theta_max_deg)
+
+    #  Curvature limit from theta_max
+    if abs(theta_max) < 1e-6:
+        k_limit = 0
+    else:
+        R_min = (W / 2) + (Lf / math.tan(theta_max))
+        k_limit = 1 / R_min
+
+    # Clamp curvature
+    k = k_limit * math.tanh(k_desired / k_limit)
+
+    # Straight case (minimal curvature)
     if abs(k) < 1e-6:
         return {
-            "FL": v, "FR": v,
-            "ML": v, "MR": v,
-            "RL": v, "RR": v
+            'speeds': [v,] * 6,
+            'angles': [0.0,] * 4,
         }
 
-    omega = v * k
     R = 1 / k
+    omega = v * k
 
-    radii = {
-        "FL": math.sqrt((R - W / 2) ** 2 + Lf ** 2),
-        "FR": math.sqrt((R + W / 2) ** 2 + Lf ** 2),
-        "ML": R - W / 2,
-        "MR": R + W / 2,
-        "RL": math.sqrt((R - W / 2) ** 2 + Lr ** 2),
-        "RR": math.sqrt((R + W / 2) ** 2 + Lr ** 2),
+    # Wheel radii (of rotation circle)
+    radii = [
+        math.sqrt((R - W / 2) ** 2 + Lf ** 2),
+        math.sqrt((R + W / 2) ** 2 + Lf ** 2),
+        math.sqrt((R - W / 2) ** 2 + Lr ** 2),
+        math.sqrt((R + W / 2) ** 2 + Lr ** 2),
+        R - W / 2,
+        R + W / 2,
+    ]
+
+    speeds = [omega * r for r in radii]
+
+    angles = [
+        math.atan(Lf / (R - W / 2)),
+        math.atan(Lf / (R + W / 2)),
+        -math.atan(Lr / (R - W / 2)),
+        -math.atan(Lr / (R + W / 2)),
+    ]
+
+    return {
+        'speeds': speeds,
+        'angles': angles,
+        'k_used': k,
+        'k_limit': k_limit,
     }
 
-    speeds = {wheel: omega * r for wheel, r in radii.items()}
+if __name__ == '__main__':
+    # Example rover
+    x = -0.5
+    y = 1
+    Vmax = 20
+    Kmax = 1
+    W = 5
+    Lf = 0.5
+    Lr = 0.5
 
-    return speeds
+    result = rover_drive(x, y, Vmax, Kmax, W, Lf, Lr)
 
-# Example rover
-x = -.5
-y = 1
-Vmax = 20
-Kmax = 1
-W  = 5
-Lf = 0.5
-Lr = 0.5
+    print('Speeds:')
+    for speed in result['speeds']:
+        print(round(speed, 3))
 
-speeds = rover_drive(x=x, y=y, Vmax=Vmax, Kmax=Kmax, W=W, Lf=Lf, Lr=Lr)
+    print('\nAngles (rad):')
+    for angle in result['angles']:
+        print(round(angle, 3))
 
-for wheel, speed in speeds.items():
-    print(wheel, round(speed, 3))
+    print('\nKs')
+    print(result['k_use'])
+    print(result['k_limit'])
+

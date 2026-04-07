@@ -21,7 +21,7 @@ setup(
     entry_points={
         'console_scripts': [
             'fsm_node = rover_commands.fsm:main',
-            'gamepad = rover_commands.game_pad_publisher:main',
+            'gamepad = rover_commands.gamepad_publisher:main',
             'wheels_manager = rover_commands.wheels_manager:main',
         ],
     },
