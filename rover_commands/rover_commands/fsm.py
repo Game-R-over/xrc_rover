@@ -72,12 +72,12 @@ class BootingState(FSMNode):
 
 class ManualState(FSMNode):
     def user_input_sub_callback(self, msg):
-        self.get_logger().info(f'User Input: {msg.speed}, {msg.angle}')
+        self.get_logger().info(f'User Input: {msg.y_speed}, {msg.x_angle}')
         self.subscribers['user_input'].data = msg
         self.publishers['move_update'].publisher.publish(msg)
 
         # TODO: Remove this test
-        if msg.speed == 200:
+        if msg.y_speed == 200:
             self.get_logger().warning('Shutting down FSM')
             self.__switch_state__('FailState')
 
@@ -95,6 +95,8 @@ class FailState(FSMNode):
 
 def main(args=None):
 
+    DEFAULT_STATE = 'ManualState' # 'BootingState'
+
     rclpy.init(args=args)
 
     FSM = StateMachine(
@@ -106,7 +108,7 @@ def main(args=None):
         .add_state(AutomaticState) \
         .add_state(FailState)
 
-    FSM.spin('BootingState')
+    FSM.spin(DEFAULT_STATE)
     FSM.call(
         'add_subscription',
         MoveData,
