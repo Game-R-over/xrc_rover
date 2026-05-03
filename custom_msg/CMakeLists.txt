@@ -27,6 +27,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/UltrasonicDistance.msg"
   "msg/MPUData.msg"
   "msg/GamepadData.msg" 
+  "msg/Vec2.msg" 
 )
 
 if(BUILD_TESTING)
