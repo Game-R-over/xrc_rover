@@ -13,6 +13,7 @@ RUN echo "deb [signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://pac
 # Install Rover packages
 RUN apt-get update && apt-get upgrade -y
 RUN apt-get install -y curl
+RUN apt-get install -y ros-humble-rosbridge-suite
 
 # Install g++ 12 (for std::expected)
 RUN apt-get install -y g++-12
