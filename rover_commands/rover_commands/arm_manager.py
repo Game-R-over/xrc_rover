@@ -77,7 +77,7 @@ class ArmManager(Node):
     def emergency_shutdown_listener_callback(self, msg):
         for i in list(self.ARM_SERVOS) + [self.CLAW_SERVO, self.BASE_SERVO]:
             self.data['servo_angle_update'].angle = 0
-            self.data['servo_angle_update'].servo = i + self.SERVOS_OFFSET
+            self.data['servo_angle_update'].servo = i
             self.publish('servo_angle_update')
 
         self.get_logger().info('Sending shutdown speed to ESP')
