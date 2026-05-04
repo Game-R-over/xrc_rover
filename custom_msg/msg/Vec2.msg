@@ -1,2 +1,2 @@
-int64_t x
-int64_t y
+int32 x
+int32 y

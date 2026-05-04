@@ -1,13 +1,10 @@
-arm = ArmData()
-    arm.computeAngles(
-        Vec2(15, -15)
-    )
-
 import rclpy
 from rclpy.node import Node
 
 from custom_msg.msg import ServoAngle, Vec2
 from std_msgs.msg import Empty, Int32
+
+from .utils.arm import ArmData
 
 class ArmManager(Node):
 
@@ -28,6 +25,8 @@ class ArmManager(Node):
     CLAW_SERVO = 1
     ARM_SERVOS = (2, 3)
     BASE_SERVO = 4
+
+    arm = ArmData()
 
     def __init__(self):
         super().__init__('arm_manager')
@@ -60,10 +59,20 @@ class ArmManager(Node):
         self.get_logger().info('[START]')
 
     def arm_position_update_listener_callback(self, msg):
-        ...
+        arm.computeAngles(
+            Vec2(msg.x, msg.y)
+        )
+        for i in range(len(self.ARM_SERVOS)):
+            self.data['servo_angle_update'].angle = arm.angles[i]
+            self.data['servo_angle_update'].servo = self.ARM_SERVOS[i]
+            self.publish('servo_angle_update')
 
     def arm_angle_update_listener_callback(self, msg):
-        ...
+        self.data['servo_angle_update'].angle = msg.data
+        self.data['servo_angle_update'].servo = self.BASE_SERVO
+        self.publish('servo_angle_update')
+
+
 
     def emergency_shutdown_listener_callback(self, msg):
         for i in list(self.ARM_SERVOS) + [self.CLAW_SERVO, self.BASE_SERVO]:

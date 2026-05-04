@@ -43,7 +43,7 @@ class WheelsManager(Node):
             10
         )
         self.subscribers['dc_speed_feedback'] = self.create_subscription(
-            Int32,
+            DCSpeed,
             'dc_speed_feedback',
             self.dc_speed_feedback_listener_callback,
             10
