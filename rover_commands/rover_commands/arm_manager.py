@@ -31,6 +31,12 @@ class ArmManager(Node):
     def __init__(self):
         super().__init__('arm_manager')
 
+        self.subscribers['arm_claw_update'] = self.create_subscription(
+            Int32,
+            'arm_claw_update',
+            self.arm_claw_update_listener_callback,
+            10
+        )
         self.subscribers['arm_position_update'] = self.create_subscription(
             Vec2,
             'arm_position_update',
@@ -58,6 +64,11 @@ class ArmManager(Node):
 
         self.get_logger().info('[START]')
 
+    def arm_claw_update_listener_callback(self, msg):
+        self.data['servo_angle_update'].angle = msg.data
+        self.data['servo_angle_update'].servo = self.CLAW_SERVO
+        self.publish('servo_angle_update')
+
     def arm_position_update_listener_callback(self, msg):
         arm.computeAngles(
             Vec2(msg.x, msg.y)
@@ -71,8 +82,6 @@ class ArmManager(Node):
         self.data['servo_angle_update'].angle = msg.data
         self.data['servo_angle_update'].servo = self.BASE_SERVO
         self.publish('servo_angle_update')
-
-
 
     def emergency_shutdown_listener_callback(self, msg):
         for i in list(self.ARM_SERVOS) + [self.CLAW_SERVO, self.BASE_SERVO]:
