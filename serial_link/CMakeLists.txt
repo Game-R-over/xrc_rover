@@ -11,6 +11,7 @@ endif()
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(std_msgs REQUIRED)
 find_package(custom_msg REQUIRED)
 
 add_executable(servos_serial_link
@@ -22,7 +23,7 @@ target_include_directories(servos_serial_link PUBLIC
 	$<INSTALL_INTERFACE:include>
 )
 target_compile_features(servos_serial_link PUBLIC c_std_99 cxx_std_23)
-ament_target_dependencies(servos_serial_link rclcpp custom_msg)
+ament_target_dependencies(servos_serial_link rclcpp std_msgs custom_msg)
 install(TARGETS servos_serial_link
 	DESTINATION lib/${PROJECT_NAME}
 )
@@ -36,7 +37,7 @@ target_include_directories(dcs_serial_link PUBLIC
 	$<INSTALL_INTERFACE:include>
 )
 target_compile_features(dcs_serial_link PUBLIC c_std_99 cxx_std_23)
-ament_target_dependencies(dcs_serial_link rclcpp custom_msg)
+ament_target_dependencies(dcs_serial_link rclcpp std_msgs custom_msg)
 install(TARGETS dcs_serial_link
 	DESTINATION lib/${PROJECT_NAME}
 )
@@ -50,7 +51,7 @@ target_include_directories(sensors_serial_link PUBLIC
 	$<INSTALL_INTERFACE:include>
 )
 target_compile_features(sensors_serial_link PUBLIC c_std_99 cxx_std_23)
-ament_target_dependencies(sensors_serial_link rclcpp custom_msg)
+ament_target_dependencies(sensors_serial_link rclcpp std_msgs custom_msg)
 install(TARGETS sensors_serial_link
 	DESTINATION lib/${PROJECT_NAME}
 )

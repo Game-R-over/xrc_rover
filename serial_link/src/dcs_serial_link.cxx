@@ -2,6 +2,7 @@
 
 #include "rclcpp/rclcpp.hpp"
 #include "custom_msg/msg/dc_speed.hpp"
+#include "std_msgs/msg/int32.hpp"
 
 #include "serial_link.hxx"
 
@@ -22,6 +23,17 @@ public:
 				
 				this->_serial->swrite(
 					std::string("M ") + std::to_string(msg.dc) + " " + std::to_string(msg.speed)
+				);
+			}
+		);
+		this->_encoder_subscription = this->create_subscription<std_msgs::msg::Int32>(
+			"encoder_request",
+			10,
+			[this](const std_msgs::msg::Int32& msg) {
+				if(msg.data > 4) { return; }
+				
+				this->_serial->swrite(
+					std::string("E ") + std::to_string(msg.data)
 				);
 			}
 		);
@@ -50,6 +62,7 @@ public:
 
 private:
 	rclcpp::Subscription<custom_msg::msg::DCSpeed>::SharedPtr		_dc_subscription;
+	rclcpp::Subscription<std_msgs::msg::Int32>::SharedPtr			_encoder_subscription;
 	rclcpp::Publisher<custom_msg::msg::DCSpeed>::SharedPtr			_dc_publisher;
 };
 

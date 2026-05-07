@@ -7,7 +7,6 @@
 
 /*
  * Ultrasonic Sensors 1-8
- * MPU
  */
 
 class SensorsSerialLink : public SerialLinkNode {
@@ -15,7 +14,7 @@ public:
 	SensorsSerialLink() :
 		SerialLinkNode("sensors_serial_link", "/dev/ttyUSB2")
 	{
-		this->_ultrasonic_sensors_publisher = this->create_subscription<custom_msg::msg::UltrasonicDistance>(
+		this->_ultrasonic_sensors_publisher = this->create_publisher<custom_msg::msg::UltrasonicDistance>(
 			"ultrasonic_distance_feedback",
 			10
 		);
@@ -33,12 +32,11 @@ public:
 
 private:
 	rclcpp::Publisher<custom_msg::msg::UltrasonicDistance>::SharedPtr	_ultrasonic_sensors_publisher;
-	rclcpp::Publisher<custom_msg::msg::MPUData>::SharedPtr				_mpu_sensor_publisher;
 };
 
 int main(int argc, char * argv[]) {
 	rclcpp::init(argc, argv);
-	rclcpp::spin(std::make_shared<ServosSerialLink>());
+	rclcpp::spin(std::make_shared<SensorsSerialLink>());
 	rclcpp::shutdown();
 	return 0;
 }

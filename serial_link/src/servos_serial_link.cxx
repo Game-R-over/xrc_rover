@@ -4,6 +4,7 @@
 #include "custom_msg/msg/servo_angle.hpp"
 #include "custom_msg/msg/dc_speed.hpp"
 #include "custom_msg/msg/mpu_data.hpp"
+#include "std_msgs/msg/int32.hpp"
 
 #include "serial_link.hxx"
 
@@ -38,6 +39,17 @@ public:
 				);
 			}
 		);
+		this->_encoder_subscription = this->create_subscription<std_msgs::msg::Int32>(
+			"encoder_request",
+			10,
+			[this](const std_msgs::msg::Int32& msg) {
+				if(msg.data < 5) { return; }
+				
+				this->_serial->swrite(
+					std::string("E ") + std::to_string(msg.data)
+				);
+			}
+		);
 		this->_dc_publisher = this->create_publisher<custom_msg::msg::DCSpeed>(
 			"dc_speed_feedback",
 			10
@@ -63,7 +75,7 @@ public:
 			RCLCPP_ERROR(this->get_logger(), "[ERROR] Received: \"%s\"", data.c_str());
 			return;
 		}
-		// TODO: Add handling for MPU
+		// TODO: Add handling for MPU and encoders
 		if(data.substr(3, 3) != "RPM") {
 			RCLCPP_INFO(this->get_logger(), "[DISCARD] Received: \"%s\"", data.c_str());
 			return;
@@ -78,6 +90,7 @@ private:
 	rclcpp::Subscription<custom_msg::msg::ServoAngle>::SharedPtr	_servo_subscription;
 	rclcpp::Subscription<custom_msg::msg::DCSpeed>::SharedPtr		_dc_subscription;
 	rclcpp::Publisher<custom_msg::msg::DCSpeed>::SharedPtr			_dc_publisher;
+	rclcpp::Subscription<std_msgs::msg::Int32>::SharedPtr			_encoder_subscription;
 	rclcpp::Publisher<custom_msg::msg::MPUData>::SharedPtr			_mpu_sensor_publisher;
 };
 
