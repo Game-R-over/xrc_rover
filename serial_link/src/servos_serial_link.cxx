@@ -71,11 +71,12 @@ public:
 	}
 
 	void on_async_read(std::string data) override {
+		if(data == "") { return; }
 		if(data.substr(0, 2) != "OK") {
 			RCLCPP_ERROR(this->get_logger(), "[ERROR] Received: \"%s\"", data.c_str());
 			return;
 		}
-		// TODO: Add handling for MPU and encoders
+		// TODO: Add handling for MPU
 		if(data.substr(3, 3) != "RPM") {
 			RCLCPP_INFO(this->get_logger(), "[DISCARD] Received: \"%s\"", data.c_str());
 			return;

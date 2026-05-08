@@ -17,17 +17,18 @@ public:
 			RCLCPP_ERROR(this->get_logger(), result.error().c_str());
 			throw "No";
 		}
+		std::this_thread::sleep_for(std::chrono::seconds(2));
         this->_serial_read_thread = std::thread([this]() { this->async_read(); });
 	}
 
 	~SerialLinkNode() {
         this->_running = false;
 
-		if(_serial) {
-			_serial->swrite("\n");
+		if(this->_serial) {
+			this->_serial->swrite("\n");
 		}
-        if(_serial_read_thread.joinable()) {
-            _serial_read_thread.join();
+        if(this->_serial_read_thread.joinable()) {
+            this->_serial_read_thread.join();
         }
 		this->_serial->sclose();
     }
