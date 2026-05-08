@@ -21,15 +21,19 @@ class WheelsManager(Node):
         'dc_speed_update': None,
         'servo_angle_update': None,
         'encoder_request': None,
+        'speed_change': None,
+        'angle_change': None,
     }
 
     data = {
         'dc_speed_update': DCSpeed(),
         'servo_angle_update': ServoAngle(),
         'encoder_request': Int32(),
+        'speed_change': DCSpeed(),
+        'angle_change': ServoAngle(),
     }
 
-    SERVOS_OFFSET = 5
+    SERVOS_OFFSET = 4 + 1
     SERVOS_NUM = 4
     DCS_NUM = 6
 
@@ -70,11 +74,20 @@ class WheelsManager(Node):
             'encoder_request',
             10
         )
+        self.publishers['speed_change'] = self.create_publisher(
+            DCSpeed,
+            'speed_change',
+            10
+        )
+        self.publishers['angle_change'] = self.create_publisher(
+            ServoAngle,
+            'angle_change',
+            10
+        )
 
-        self.timer = self.create_timer(0.5, self.update_history)
+        self.timer = self.create_timer(0.1, self.request_encoder_speeds)
 
         self.get_logger().info('[START]')
-
 
     def move_update_listener_callback(self, msg):
 
@@ -88,31 +101,27 @@ class WheelsManager(Node):
 
         drive_data = rover_drive(msg.x_angle, msg.y_speed, Vmax, Kmax, W, Lf, Lr)
 
-        self.write(drive_data)
-
         for dc, speed in enumerate(drive_data['speeds']):
             self.data['dc_speed_update'].speed = speed
-            self.data['dc_speed_update'].dc = dc
+            self.data['dc_speed_update'].dc = dc + 1
             self.publish('dc_speed_update')
 
         for servo, angle in enumerate(drive_data['angles']):
-            self.data['servo_angle_update'].angle = speed
+            self.data['servo_angle_update'].angle = angle
             self.data['servo_angle_update'].servo = servo + self.SERVOS_OFFSET
             self.publish('servo_angle_update')
+            self.write_angle(self.data['servo_angle_update'])
 
     def dc_speed_feedback_listener_callback(self, msg):
-        self.history.append({
-            'time': time.time_ns(),
-            'data': {
-                'speeds': [msg.speed if i == msg.dc else 0 for i in range(7)]
-            }
-        })
+        self.data['speed_change'].dc = msg.dc
+        self.data['speed_change'].speed = msg.speed
+        self.publish('speed_change')
 
     def emergency_shutdown_listener_callback(self, msg):
 
         for i in range(self.DCS_NUM):
             self.data['dc_speed_update'].speed = 0
-            self.data['dc_speed_update'].dc = i
+            self.data['dc_speed_update'].dc = i + 1
             self.publish('dc_speed_update')
 
         for i in range(self.SERVOS_NUM):
@@ -125,18 +134,14 @@ class WheelsManager(Node):
     def publish(self, topic):
         self.publishers[topic].publish(self.data[topic])
 
-    def update_history(self):
+    def request_encoder_speeds(self):
         for i in range(self.DCS_NUM):
-            self.data['encoder_request'].data = i
+            self.data['encoder_request'].data = i + 1
             self.publish('encoder_request')
 
-    def write(self, drive_data):
-        self.history.append({
-            'time': time.time_ns(),
-            'data': {
-                'angles': drive_data['angles']
-            }
-        })
+    def write_angle(self, msg):
+        self.data['angle_change'] = msg
+        self.publish('angle_change')
 
 def main(args=None):
     rclpy.init(args=args)

@@ -24,6 +24,7 @@ setup(
             'gamepad = rover_commands.gamepad_publisher:main',
             'wheels_manager = rover_commands.wheels_manager:main',
             'arm_manager = rover_commands.arm_manager:main',
+            'odometry_manager = rover_commands.odometry_manager:main',
         ],
     },
 )
