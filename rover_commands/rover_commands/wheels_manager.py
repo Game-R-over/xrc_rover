@@ -10,8 +10,6 @@ from .utils.wheels import rover_drive
 
 class WheelsManager(Node):
 
-    history = []
-
     subscribers = {
         'move_update': None,
         'emergency_shutdown': None,
