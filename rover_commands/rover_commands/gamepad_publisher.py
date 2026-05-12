@@ -3,9 +3,9 @@ from rclpy.node import Node
 from custom_msg.msg import MoveData, GamepadData, Vec2
 from std_msgs.msg import Int32
 
+import math
 
 class GamepadPublisher(Node):
-
     user_input_wheels_publisher = None
     user_input_arm_position_publisher = None
     user_input_arm_angle_publisher = None
@@ -14,12 +14,15 @@ class GamepadPublisher(Node):
     MAX_ARM_BASE_ANGLE = 180
     DEFAULT_ARM_BASE_ANGLE = 90
     ANGLE_INCREMENT = 5
-
-    ARM_RANGE = 80
+    RANGE_ARM=800
+    MIN_ARM_CLAW_ANGLE = 0
+    MAX_ARM_CLAW_ANGLE = 90
+    DEFAULT_ARM_CLAW_ANGLE = 90
 
     data = MoveData()
-    arm_base_angle = DEFAULT_ARM_BASE_ANGLE
-    arm_position = Vec2()
+    angle_base_arm = DEFAULT_ARM_BASE_ANGLE
+    angle_claw_arm = DEFAULT_ARM_CLAW_ANGLE
+    position_arm = Vec2()
 
 
     def __init__(self):
@@ -29,6 +32,7 @@ class GamepadPublisher(Node):
         self.user_input_wheels_publisher = self.create_publisher(MoveData, 'user_input', 10)
         self.user_input_arm_position_publisher = self.create_publisher(Vec2, 'arm_position_update', 10) 
         self.user_input_arm_angle_publisher = self.create_publisher(Int32, 'arm_angle_update', 10) 
+        self.user_input_arm_claw_publisher= self.create_publisher(Int32,'arm_claw_update', 10)
 
         self.get_logger().info('[START]')
         
@@ -41,32 +45,56 @@ class GamepadPublisher(Node):
         
     def get_user_input(self, msg):
         
-        # Y: SPEED and X: ANGLE
+        self.get_logger().info("J'ai reçu un message !")
+        self.get_logger().info(f'Reçu: right_x={msg.axis_right_x} right_y={msg.axis_right_y}')
+        self.get_logger().info(f'Reçu: left_x={msg.axis_left_x} left_y={msg.axis_left_y} right_x={msg.axis_right_x} right_y={msg.axis_right_y}')
+        #is the changement too fast ?
         
-        self.data.y_speed = msg.axis_right_y if abs(msg.axis_right_y) > 0.05 else 0.0
-        self.data.x_angle = msg.axis_right_x if abs(msg.axis_right_x) > 0.05 else 0.0
+        #avoid error static joystic
+        if abs(msg.axis_right_y)>0.05:
+            self.data.y_speed= msg.axis_right_y
+        # value between  -1 and 1
+        else: self.data.y_speed=0.0
+            
+        if abs(msg.axis_right_x)>0.05:
+            self.data.x_angle=msg.axis_right_x
+        else: self.data.x_angle=0.0
      
         self.user_input_wheels_publisher.publish(self.data)
         self.get_logger().info(f'Current data:\n\tspeed:{self.data.y_speed}\n\tangle:{self.data.x_angle}')
         
-        # ARM Angle
-    
-        if msg.trigger_left > 0.5:
-            self.angle_base_arm = max(self.angle_base_arm - self.ANGLE_INCREMENT, self.MIN_ARM_BASE_ANGLE)
+        #angle_base_arm
+        if  msg.trigger_left > 0.5 and self.angle_base_arm > self.MIN_ARM_BASE_ANGLE:
+            self.angle_base_arm-= self.ANGLE_INCREMENT
         
-        if msg.trigger_right > 0.5 and self.angle_base_arm < self.MAX_ARM_BASE_ANGLE - self.ANGLE_INCREMENT:
-            self.angle_base_arm = min(self.angle_base_arm + self.ANGLE_INCREMENT, self.MAX_ARM_BASE_ANGLE)
+        if msg.trigger_right > 0.5 and self.angle_base_arm < self.MAX_ARM_BASE_ANGLE:
+            self.angle_base_arm+=self.ANGLE_INCREMENT
         
         angle_message = Int32()
-        angle_message.data = self.angle_base_arm
+        angle_message.data= self.angle_base_arm
         self.user_input_arm_angle_publisher.publish(angle_message)
 
-        # ARM Position
+        #angle claw
+        
+        if  msg.button_left==1 and self.angle_claw_arm > self.MIN_ARM_CLAW_ANGLE:
+            self.angle_claw_arm-= self.ANGLE_INCREMENT
+        
+        if msg.button_right==1 and self.angle_claw_arm < self.MAX_ARM_CLAW_ANGLE:
+            self.angle_claw_arm+=self.ANGLE_INCREMENT
+        
+        claw_message = Int32()
+        claw_message.data= self.angle_claw_arm
+        self.user_input_arm_claw_publisher.publish(claw_message)
 
-        self.position_arm.x = msg.axis_left_x * self.RANGE_ARM
-        self.position_arm.y = msg.axis_left_y * self.RANGE_ARM
+        #position_arm
+
+        self.position_arm.x = math.floor(msg.axis_left_x * self.RANGE_ARM)
+        self.position_arm.y = math.floor(msg.axis_left_y * self.RANGE_ARM)
 
         self.user_input_arm_position_publisher.publish(self.position_arm)
+
+
+
 
 def main(args=None):
     rclpy.init(args=args)
