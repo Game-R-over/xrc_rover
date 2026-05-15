@@ -74,14 +74,14 @@ class GamepadPublisher(Node):
 
         # CLAW Angle
         
-        if msg.button_left == 1 and self.angle_claw_arm > self.MIN_ARM_CLAW_ANGLE:
-            self.angle_claw_arm -= self.ANGLE_INCREMENT
+        if msg.button_left == 1 and self.arm_claw_angle > self.MIN_ARM_CLAW_ANGLE:
+            self.arm_claw_angle -= self.ANGLE_INCREMENT
         
-        if msg.button_right == 1 and self.angle_claw_arm < self.MAX_ARM_CLAW_ANGLE:
-            self.angle_claw_arm += self.ANGLE_INCREMENT
+        if msg.button_right == 1 and self.arm_claw_angle < self.MAX_ARM_CLAW_ANGLE:
+            self.arm_claw_angle += self.ANGLE_INCREMENT
         
         claw_message = Int32()
-        claw_message.data = self.angle_claw_arm
+        claw_message.data = self.arm_claw_angle
         self.user_input_arm_claw_publisher.publish(claw_message)
 
         self.arm_position.x = math.floor(msg.axis_left_x * self.ARM_RANGE)
