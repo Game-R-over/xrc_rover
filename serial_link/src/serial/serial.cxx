@@ -6,14 +6,7 @@ Serial::Serial(
 	m_serial_port(
 		open(file.c_str(), O_RDWR | O_NOCTTY /*| O_NONBLOCK*/)
 	)
-{
-	this->set_tty_cflags();
-	this->set_tty_lflags();
-	this->set_tty_iflags();
-	this->set_tty_oflags();
-	this->set_c_cc();
-	this->set_baud_rate();
-}
+{}
 
 std::expected<
 	Empty,
@@ -24,6 +17,12 @@ std::expected<
 			std::string("Error ") + std::to_string(errno) + " from tcgetattr: " + strerror(errno)
 		);
 	}
+	this->set_tty_cflags();
+	this->set_tty_lflags();
+	this->set_tty_iflags();
+	this->set_tty_oflags();
+	this->set_c_cc();
+	this->set_baud_rate();
 	if(tcsetattr(m_serial_port, TCSANOW, &m_tty) != 0) {
 		return std::unexpected(
 			std::string("Error ") + std::to_string(errno) + " from tcsetattr: " + strerror(errno)
@@ -36,6 +35,7 @@ std::expected<
 	Empty,
 	std::string
 > Serial::swrite(std::string data) {
+	data += "\n";
 	if(write(m_serial_port, data.c_str(), data.size()) == -1) {
 		return std::unexpected("Error trying to write to serial.");
 	}
@@ -48,9 +48,11 @@ std::expected<
 > Serial::sread() {
 	char read_buf[64];
 
-	memset(read_buf, '\0', sizeof(read_buf));
-
-	int num_bytes = read(m_serial_port, read_buf, sizeof(read_buf));
+	int num_bytes = read(
+		m_serial_port,
+		read_buf,
+		sizeof(read_buf)
+	);
 
 	if(num_bytes < 0) {
 		return std::unexpected(
@@ -58,7 +60,23 @@ std::expected<
 		);
 	}
 
-	return std::string(read_buf);
+	// Append only actual bytes read
+	m_rx_buffer.append(read_buf, num_bytes);
+
+	// Look for newline
+	size_t pos = m_rx_buffer.find('\n');
+
+	if(pos == std::string::npos) {
+		return std::unexpected("No complete line yet");
+	}
+
+	// Extract line including/excluding newline
+	std::string line = m_rx_buffer.substr(0, pos);
+
+	// Remove processed data (+1 removes '\n')
+	m_rx_buffer.erase(0, pos + 1);
+
+	return line;
 }
 
 void Serial::sclose() {
@@ -81,7 +99,8 @@ void Serial::set_tty_cflags() {
 	m_tty.c_cflag |= CREAD | CLOCAL;	// Turn on READ & ignore ctrl lines (CLOCAL = 1)
 }
 void Serial::set_tty_lflags() {
-	m_tty.c_lflag &= ~ICANON;
+	//m_tty.c_lflag &= ~ICANON;
+	m_tty.c_lflag |= ICANON;
 	m_tty.c_lflag &= ~ECHO;		// Disable echo
 	m_tty.c_lflag &= ~ECHOE;	// Disable erasure
 	m_tty.c_lflag &= ~ECHONL;	// Disable new-line echo

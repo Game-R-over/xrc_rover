@@ -23,6 +23,7 @@ public:
 			"servo_angle_update",
 			10,
 			[this](const custom_msg::msg::ServoAngle& msg) {
+				RCLCPP_INFO(this->get_logger(), (std::string("S ") + std::to_string(msg.servo) + " " + std::to_string(msg.angle)).c_str());
 				this->_serial->swrite(
 					std::string("S ") + std::to_string(msg.servo) + " " + std::to_string(msg.angle)
 				);
@@ -33,6 +34,8 @@ public:
 			10,
 			[this](const custom_msg::msg::DCSpeed& msg) {
 				if(msg.dc < 5) { return; }
+
+				RCLCPP_INFO(this->get_logger(), std::string(std::string("M ") + std::to_string(msg.dc) + " " + std::to_string(msg.speed)).c_str());
 
 				this->_serial->swrite(
 					std::string("M ") + std::to_string(msg.dc) + " " + std::to_string(msg.speed)
@@ -59,14 +62,6 @@ public:
 			10
 		);
 
-
-		auto res = this->_serial->swrite("E 1\n");
-		RCLCPP_INFO(this->get_logger(), "\"%s\"", res.has_value() ? "YES" : "NO");
-		
-		if(!res.has_value()) {
-			RCLCPP_INFO(this->get_logger(), res.error().c_str());
-		}
-
 		RCLCPP_INFO(this->get_logger(), "START");
 	}
 
@@ -76,13 +71,17 @@ public:
 			RCLCPP_ERROR(this->get_logger(), "[ERROR] Received: \"%s\"", data.c_str());
 			return;
 		}
+		if(data.at(3) == 'S') {
+			RCLCPP_INFO(this->get_logger(), "[DISCARD] Received servo: \"%s\"", data.c_str());
+			return;
+		}
 		// TODO: Add handling for MPU
-		if(data.substr(3, 3) != "RPM") {
+		if(data.at(3) != 'M') {
 			RCLCPP_INFO(this->get_logger(), "[DISCARD] Received: \"%s\"", data.c_str());
 			return;
 		}
-		int dc = data.at(7) - '0';
-		int speed = std::stoi(data.substr(9));
+		int dc = data.at(5) - '0';
+		int speed = std::stoi(data.substr(7));
 
 		RCLCPP_INFO(this->get_logger(), "[INFO] Received dc: %d, speed: %d\"", dc, speed);
     }

@@ -20,6 +20,7 @@ public:
 			10,
 			[this](const custom_msg::msg::DCSpeed& msg) {
 				if(msg.dc > 4) { return; }
+				RCLCPP_INFO(this->get_logger(), std::string(std::string("M ") + std::to_string(msg.dc) + " " + std::to_string(msg.speed)).c_str());
 				
 				this->_serial->swrite(
 					std::string("M ") + std::to_string(msg.dc) + " " + std::to_string(msg.speed)

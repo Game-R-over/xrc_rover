@@ -44,4 +44,5 @@ private:
 	int m_serial_port;
 	struct termios m_tty;
 	const speed_t BAUD_RATE = B115200;
+	std::string m_rx_buffer;
 };
