@@ -5,6 +5,7 @@ from custom_msg.msg import MoveData, DCSpeed, ServoAngle
 from std_msgs.msg import Empty, Int32
 
 import time
+import math
 
 from .utils.wheels import rover_drive
 
@@ -91,13 +92,17 @@ class WheelsManager(Node):
 
         self.get_logger().info(f'Received command: speed={msg.y_speed}, angle={msg.x_angle}')
 
-        Vmax = 20
+        Vmax = 255
         Kmax = 1
         W = 5
         Lf = 0.5
         Lr = 0.5
 
+        if msg.y_speed == 0:
+            return
+
         drive_data = rover_drive(msg.x_angle, msg.y_speed, Vmax, Kmax, W, Lf, Lr)
+        print(drive_data)
 
         for dc, speed in enumerate(drive_data['speeds']):
             self.data['dc_speed_update'].speed = speed
@@ -105,7 +110,7 @@ class WheelsManager(Node):
             self.publish('dc_speed_update')
 
         for servo, angle in enumerate(drive_data['angles']):
-            self.data['servo_angle_update'].angle = angle
+            self.data['servo_angle_update'].angle = angle  / math.pi * 180 + 90
             self.data['servo_angle_update'].servo = servo + self.SERVOS_OFFSET
             self.publish('servo_angle_update')
             self.write_angle(self.data['servo_angle_update'])
