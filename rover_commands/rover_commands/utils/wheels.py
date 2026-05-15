@@ -2,43 +2,55 @@ import math
 
 def rover_drive(x, y, Vmax, Kmax, W, Lf, Lr, theta_max_deg=30):
 
-    v = Vmax * y
-    k_desired = Kmax * x
-
     theta_max = math.radians(theta_max_deg)
 
-    #  Curvature limit from theta_max
+    # Desired curvature
+    k_desired = Kmax * x
+
+    # Steering curvature limit
     if abs(theta_max) < 1e-6:
         k_limit = 0
     else:
         R_min = (W / 2) + (Lf / math.tan(theta_max))
         k_limit = 1 / R_min
 
-    # Clamp curvature
+    # Smooth curvature clamp
     k = k_limit * math.tanh(k_desired / k_limit)
 
-    # Straight case (minimal curvature)
+    # Straight driving
     if abs(k) < 1e-6:
+        v = Vmax * y
+
         return {
-            'speeds': [v,] * 6,
-            'angles': [0.0,] * 4,
+            'speeds': [v] * 6,
+            'angles': [0.0] * 4,
+            'k_used': 0.0,
+            'k_limit': k_limit,
         }
 
     R = 1 / k
-    omega = v * k
 
-    # Wheel radii (of rotation circle)
+    # Rotation radii for each wheel
     radii = [
-        math.sqrt((R - W / 2) ** 2 + Lf ** 2),
-        math.sqrt((R + W / 2) ** 2 + Lf ** 2),
-        math.sqrt((R - W / 2) ** 2 + Lr ** 2),
-        math.sqrt((R + W / 2) ** 2 + Lr ** 2),
-        R - W / 2,
-        R + W / 2,
+        math.sqrt((R - W / 2) ** 2 + Lf ** 2),  # front left
+        math.sqrt((R + W / 2) ** 2 + Lf ** 2),  # front right
+        math.sqrt((R - W / 2) ** 2 + Lr ** 2),  # rear left
+        math.sqrt((R + W / 2) ** 2 + Lr ** 2),  # rear right
+        abs(R - W / 2),                          # middle left
+        abs(R + W / 2),                          # middle right
     ]
 
+    # Limit omega so NO wheel exceeds Vmax
+    max_radius = max(radii)
+
+    omega_max = Vmax / max_radius
+
+    omega = omega_max * y
+
+    # Final wheel speeds
     speeds = [omega * r for r in radii]
 
+    # Steering angles
     angles = [
         math.atan(Lf / (R - W / 2)),
         math.atan(Lf / (R + W / 2)),
