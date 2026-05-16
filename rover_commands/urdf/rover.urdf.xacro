@@ -1,0 +1,167 @@
+<?xml version="1.0"?>
+<robot name="rover" xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <xacro:property name="base_width" value="0.5"/>
+  <xacro:property name="base_length_front" value="0.30"/>
+  <xacro:property name="base_length_back" value="0.25"/>
+
+  <xacro:property name="wheels_zoff" value="0.136"/>
+
+  <xacro:property name="cam_xoff" value="0.1"/>
+  <xacro:property name="cam_zoff" value="0.1"/>
+
+  <xacro:property name="imu_xoff" value="0.1"/>
+  <xacro:property name="imu_zoff" value="0.1"/>
+
+  <xacro:property name="arm_base_xoff" value="0.1"/>
+  <xacro:property name="arm_base_zoff" value="0.1"/>
+  <xacro:property name="arm_segment_length" value="0.15"/>
+  <xacro:property name="arm_gripper_offset" value="0.05"/>
+  <xacro:property name="arm_gripper_finger_offset" value="0.025"/>
+
+  <xacro:macro name="wheel" params="name y_reflect fb_offset">
+    <link name="wheel_${name}">
+    </link>
+
+    <joint name="wheel_${name}_joint" type="fixed">
+      <parent link="base_link"/>
+      <child link="wheel_${name}"/>
+      <origin xyz="${fb_offset} ${y_reflect*(base_width/2)} ${-wheels_zoff}" rpy="0 0 0"/>
+    </joint>
+  </xacro:macro>
+
+  <!-- ===================== -->
+  <!-- BASE -->
+  <!-- ===================== -->
+
+  <link name="base_link"/>
+
+  <!-- ===================== -->
+  <!-- WHEELS (6-wheel rover) -->
+  <!-- ===================== -->
+
+  <xacro:wheel name="fl" y_reflect="1" fb_offset="${base_length_front}" />
+  <xacro:wheel name="fr" y_reflect="-1" fb_offset="${base_length_front}" />
+  <xacro:wheel name="ml" y_reflect="1" fb_offset="0" />
+  <xacro:wheel name="mr" y_reflect="-1" fb_offset="0" />
+  <xacro:wheel name="bl" y_reflect="1" fb_offset="-${base_length_back}" />
+  <xacro:wheel name="br" y_reflect="-1" fb_offset="-${base_length_back}" />
+
+    <!-- ===================== -->
+  <!-- CAMERA -->
+  <!-- ===================== -->
+
+  <link name="camera_link"/>
+
+  <joint name="camera_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="camera_link"/>
+	<origin xyz="${cam_xoff} 0 ${cam_zoff}" rpy="0 0 0"/>
+  </joint>
+
+  <!-- ===================== -->
+  <!-- IMU -->
+  <!-- ===================== -->
+
+  <link name="imu_link"/>
+
+  <joint name="imu_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="imu_link"/>
+	<origin xyz="${imu_xoff} 0 ${imu_zoff}" rpy="0 0 0"/>
+  </joint>
+
+  <!-- ===================== -->
+  <!-- ARM -->
+  <!-- ===================== -->
+
+  <link name="arm_base_link"/>
+
+  <joint name="arm_mount_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="arm_base_link"/>
+	<origin xyz="${arm_base_xoff} 0 ${arm_base_zoff}" rpy="0 0 0"/>
+  </joint>
+
+  <!-- YAW (BASE ROTATION) -->
+
+  <link name="arm_yaw_link"/>
+
+  <joint name="arm_yaw_joint" type="revolute">
+    <parent link="arm_base_link"/>
+    <child link="arm_yaw_link"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/>   <!-- vertical rotation -->
+	<limit lower="-${pi / 2}" upper="${pi / 2}" effort="10" velocity="2"/>
+  </joint>
+
+  <link name="arm_planar_frame"/>
+  <joint name="arm_planar_joint" type="fixed">
+    <parent link="arm_yaw_link"/>
+    <child link="arm_planar_frame"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </joint>
+
+  <!-- SHOULDER (PITCH) -->
+
+  <link name="shoulder_link"/>
+
+  <joint name="shoulder_joint" type="revolute">
+    <parent link="arm_planar_frame"/>
+    <child link="shoulder_link"/>
+	<origin xyz="0 0 ${arm_segment_length}" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+	<limit lower="0" upper="${pi}" effort="10" velocity="2"/>
+  </joint>
+
+  <!-- ELBOW (PITCH) -->
+
+  <link name="elbow_link"/>
+
+  <joint name="elbow_joint" type="revolute">
+	<parent link="shoulder_link"/>
+	<child link="elbow_link"/>
+	<origin xyz="0 0 ${arm_segment_length}" rpy="0 0 0"/>
+	<axis xyz="0 1 0"/>
+	<limit lower="0" upper="${pi}" effort="10" velocity="2"/>
+  </joint>
+
+  <!-- WRIST -->
+
+  <link name="wrist_link"/>
+
+  <joint name="wrist_fixed" type="fixed">
+	<parent link="elbow_link"/>
+	<child link="wrist_link"/>
+  </joint>
+
+  <!-- GRIPPER -->
+  <link name="gripper_base_link"/>
+
+  <joint name="gripper_mount_joint" type="fixed">
+    <parent link="wrist_link"/>
+    <child link="gripper_base_link"/>
+	<origin xyz="0 0 ${arm_gripper_offset}" rpy="0 0 0"/>
+  </joint>
+
+  <link name="left_finger_link"/>
+
+  <joint name="left_finger_joint" type="prismatic">
+    <parent link="gripper_base_link"/>
+    <child link="left_finger_link"/>
+	<origin xyz="0 ${arm_gripper_finger_offset} 0" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+	<limit lower="0.0" upper="${arm_gripper_finger_offset}" effort="10" velocity="0.1"/>
+  </joint>
+
+  <link name="right_finger_link"/>
+
+  <joint name="right_finger_joint" type="prismatic">
+    <parent link="gripper_base_link"/>
+    <child link="right_finger_link"/>
+	<origin xyz="0 -${arm_gripper_finger_offset} 0" rpy="0 0 0"/>
+    <axis xyz="0 -1 0"/>
+	<limit lower="0.0" upper="${arm_gripper_finger_offset}" effort="10" velocity="0.1"/>
+  </joint>
+
+</robot>
