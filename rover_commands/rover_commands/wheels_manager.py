@@ -93,24 +93,30 @@ class WheelsManager(Node):
         self.get_logger().info(f'Received command: speed={msg.y_speed}, angle={msg.x_angle}')
 
         Vmax = 255
-        Kmax = 1
-        W = 5
-        Lf = 0.5
-        Lr = 0.5
-
-        if msg.y_speed == 0:
-            return
+        Kmax = 5
+        W = 0.5
+        Lf = 0.3
+        Lr = 0.25
 
         drive_data = rover_drive(msg.x_angle, msg.y_speed, Vmax, Kmax, W, Lf, Lr)
         print(drive_data)
 
         for dc, speed in enumerate(drive_data['speeds']):
-            self.data['dc_speed_update'].speed = speed
+            #if dc== 0:
+            #self.data['dc_speed_update'].speed = msg.y_speed*255
+            if msg.y_speed != 0:
+                self.data['dc_speed_update'].speed = speed/Vmax*100+ speed / abs(speed)*155
+            else:
+                self.data['dc_speed_update'].speed=0.
+            
             self.data['dc_speed_update'].dc = dc + 1
             self.publish('dc_speed_update')
 
         for servo, angle in enumerate(drive_data['angles']):
-            self.data['servo_angle_update'].angle = angle  / math.pi * 180 + 90
+            #if servo == 0:
+            #self.data['servo_angle_update'].angle = msg.x_angle*40+90
+            #else :
+            self.data['servo_angle_update'].angle = angle*180/math.pi+90
             self.data['servo_angle_update'].servo = servo + self.SERVOS_OFFSET
             self.publish('servo_angle_update')
             self.write_angle(self.data['servo_angle_update'])

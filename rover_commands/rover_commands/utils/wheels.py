@@ -32,12 +32,12 @@ def rover_drive(x, y, Vmax, Kmax, W, Lf, Lr, theta_max_deg=30):
 
     # Rotation radii for each wheel
     radii = [
-        math.sqrt((R - W / 2) ** 2 + Lf ** 2),  # front left
-        math.sqrt((R + W / 2) ** 2 + Lf ** 2),  # front right
-        math.sqrt((R - W / 2) ** 2 + Lr ** 2),  # rear left
-        math.sqrt((R + W / 2) ** 2 + Lr ** 2),  # rear right
-        abs(R - W / 2),                          # middle left
-        abs(R + W / 2),                          # middle right
+        math.sqrt((R + W / 2) ** 2 + Lf ** 2),  # front left
+        math.sqrt((R - W / 2) ** 2 + Lf ** 2),  # front right
+        math.sqrt((R + W / 2) ** 2 + Lr ** 2),  # rear left
+        math.sqrt((R - W / 2) ** 2 + Lr ** 2),  # rear right
+        abs(R + W / 2),                          # middle left
+        abs(R - W / 2),                          # middle right
     ]
 
     # Limit omega so NO wheel exceeds Vmax
@@ -52,10 +52,10 @@ def rover_drive(x, y, Vmax, Kmax, W, Lf, Lr, theta_max_deg=30):
 
     # Steering angles
     angles = [
-        math.atan(Lf / (R - W / 2)),
         math.atan(Lf / (R + W / 2)),
-        -math.atan(Lr / (R - W / 2)),
+        math.atan(Lf / (R - W / 2)),
         -math.atan(Lr / (R + W / 2)),
+        -math.atan(Lr / (R - W / 2)),
     ]
 
     return {

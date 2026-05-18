@@ -19,6 +19,7 @@ class GamepadPublisher(Node):
     MIN_ARM_CLAW_ANGLE = 0
     MAX_ARM_CLAW_ANGLE = 90
     DEFAULT_ARM_CLAW_ANGLE = 90
+    
 
     data = MoveData()
     arm_base_angle = DEFAULT_ARM_BASE_ANGLE
@@ -47,9 +48,10 @@ class GamepadPublisher(Node):
     def get_user_input(self, msg):
 
         # DCs + Servos
-        
-        if abs(msg.axis_right_y) > 0.05:
-            self.data.y_speed = msg.axis_right_y
+    
+
+        if abs(msg.axis_right_y)> 0.05:
+                self.data.y_speed = msg.axis_right_y
         else: self.data.y_speed = 0.0
             
         if abs(msg.axis_right_x) > 0.05:
