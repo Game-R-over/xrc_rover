@@ -5,106 +5,172 @@ from custom_msg.msg import DCSpeed, ServoAngle
 from std_msgs.msg import Empty
 from nav_msgs.msg import Odometry
 
+import numpy as np
 import math
 
-class OdometryManager(Node):
 
-    subscribers = {
-        'speed_change': None,
-        'angle_change': None,
-        'emergency_shutdown': None,
-    }
+class WheelOdometry(Node):
 
-    publishers = {
-        'odometry_update': None,
-    }
-
-    data = {
-        'odometry_update': Odometry(),
-    }
-
-    SERVOS_OFFSET = 4 + 1
-
-    state = [0.0, 0.0, 0.0] # [x, y, theta]
-    wheel_speeds = [0.0] * 6
-    steering_angles = [0.0] * 4
-
-    dt = 0.02
-
-    Lf = 10 # distance from center to front axle
-    Lr = 10 # distance from center to rear axle
+    SERVOS_OFFSET = 5
 
     def __init__(self):
-        super().__init__('odometry_manager')
+        super().__init__('wheel_odometry')
 
-        self.subscribers['speed_change'] = self.create_subscription(
+        self.dt = 0.02
+
+        self.Lf = 0.30
+        self.Lr = 0.25
+        self.TRACK = 0.50
+
+        self.wheel_positions = {
+            'FL': (+self.Lf, +self.TRACK / 2),
+            'FR': (+self.Lf, -self.TRACK / 2),
+
+            'ML': (0.0, +self.TRACK / 2),
+            'MR': (0.0, -self.TRACK / 2),
+
+            'BL': (-self.Lr, +self.TRACK / 2),
+            'BR': (-self.Lr, -self.TRACK / 2),
+        }
+
+        self.wheel_speeds = [0.0] * 6
+        self.angles = [0.0] * 4
+
+        self.create_subscription(
             DCSpeed,
             'speed_change',
-            self.speed_change_listener_callback,
+            self.speed_callback,
             10
         )
-        self.subscribers['angle_change'] = self.create_subscription(
+        self.create_subscription(
             ServoAngle,
             'angle_change',
-            self.angle_change_listener_callback,
+            self.angle_callback,
             10
         )
-        self.subscribers['emergency_shutdown'] = self.create_subscription(
+        self.create_subscription(
             Empty,
             'emergency_shutdown',
-            self.emergency_shutdown_listener_callback,
+            self.shutdown_callback,
             10
         )
 
-        self.publishers['odometry_update'] = self.create_publisher(
+        self.odom_publisher = self.create_publisher(
             Odometry,
-            'odometry_update',
+            '/odom/wheel',
             10
         )
 
-        self.timer = self.create_timer(self.dt, self.update_odometry)
+        self.timer = self.create_timer(
+            self.dt,
+            self.update
+        )
 
-        self.get_logger().info('[START]')
+        self.get_logger().info('Wheel odometry started')
 
-    def speed_change_listener_callback(self, msg):
+
+    def speed_callback(self, msg):
         self.wheel_speeds[msg.dc - 1] = msg.speed
 
-    def angle_change_listener_callback(self, msg):
-        self.steering_angles[msg.servo - self.SERVOS_OFFSET] = msg.angle
+    def angle_callback(self, msg):
+        self.angles[msg.servo - self.SERVOS_OFFSET] = msg.angle
 
-    def emergency_shutdown_listener_callback(self, msg):
-        ...
+    def shutdown_callback(self, msg):
+        pass
 
-    def update_odometry(self):
+    def compute_speeds(self):
 
-        # TODO: Check if FL, FR, BL, BR are right
+        alphas = {
+            servo: self.angles[i]
+            for i, servo in enumerate(('FL', 'FR', 'BL', 'BR'))
+        }
 
-        v = sum(self.wheel_speeds) / 6.0
+        vs = {
+            motor: self.wheel_speeds[i]
+            for i, motor in enumerate(('FL', 'FR', 'ML', 'MR', 'BL', 'BR'))
+        }
 
-        delta_f = (
-            self.steering_angles[0] + # FL
-            self.steering_angles[1] # FR
-        ) / 2.0
+        A_rows = []
+        b_rows = []
 
-        delta_r = (
-            self.steering_angles[2] + # BL
-            self.steering_angles[3] # BR
-        ) / 2.0
+        for name in vs.keys():
 
-        omega = (
-            v / (self.Lf + self.Lr)
-        ) * (
-            math.tan(delta_f) -
-            math.tan(delta_r)
-        )
+            alpha = alphas.get(name, 0.0)
+            v = vs[name]
 
-        self.state[0] += v * math.cos(self.state[2]) * self.dt
-        self.state[1] += v * math.sin(self.state[2]) * self.dt
-        self.state[2] += omega * self.dt
+            x, y = self.wheel_positions[name]
+
+            sina = math.sin(alpha)
+            cosa = math.cos(alpha)
+
+            # No-slip constraint
+            A_rows.append([
+                -sina,
+                cosa,
+                sina * y + cosa * x
+            ])
+            b_rows.append(0.0)
+
+            # Rolling constraint
+            A_rows.append([
+                cosa,
+                sina,
+                -cosa * y - sina * x
+            ])
+            b_rows.append(v)
+
+        A = np.array(A_rows)
+        b = np.array(b_rows)
+
+        xi, *_ = np.linalg.lstsq(A, b, rcond=None)
+
+        vx, vy, omega = xi
+
+        return vx, vy, omega
+
+    def publish_odometry(self, vx, vy, omega):
+
+        msg = Odometry()
+
+        current_time = self.get_clock().now()
+
+        msg.header.stamp = current_time.to_msg()
+
+        msg.header.frame_id = 'odom'
+        msg.child_frame_id = 'base_footprint'
+
+        # Unknown pose (very high covariance)
+        msg.pose.pose.orientation.w = 1.0
+        msg.pose.covariance = [
+            1e6, 0.0,   0.0,   0.0,   0.0,    0.0,
+            0.0,   1e6, 0.0,   0.0,   0.0,    0.0,
+            0.0,   0.0,   1e6, 0.0,   0.0,    0.0,
+            0.0,   0.0,   0.0,   1e6, 0.0,    0.0,
+            0.0,   0.0,   0.0,   0.0,   1e6,  0.0,
+            0.0,   0.0,   0.0,   0.0,   0.0,    1e6
+        ]
+
+        msg.twist.twist.linear.x = float(vx)
+        msg.twist.twist.linear.y = float(vy)
+        msg.twist.twist.angular.z = float(omega)
+        msg.twist.covariance = [
+            0.05, 0.0,  0.0,  0.0,  0.0,    0.0,
+            0.0,  0.05, 0.0,  0.0,  0.0,    0.0,
+            0.0,  0.0,  1e6, 0.0,  0.0,    0.0,
+            0.0,  0.0,  0.0,  1e6, 0.0,    0.0,
+            0.0,  0.0,  0.0,  0.0,  1e6,   0.0,
+            0.0,  0.0,  0.0,  0.0,  0.0,    0.1
+        ]
+
+        self.odom_publisher.publish(msg)
+
+    def update(self):
+        self.publish_odometry(*self.compute_speeds())
+
 
 def main(args=None):
     rclpy.init(args=args)
-    node = OdometryManager()
+    node = WheelOdometry()
     rclpy.spin(node)
     node.destroy_node()
     rclpy.shutdown()
