@@ -6,134 +6,82 @@ from rclpy.node import Node
 from std_msgs.msg import Empty
 from custom_msg.msg import MoveData
 
-class FSMNodeSubscriber:
-    subscription = None
-    data = None
-
-    def __init__(self, create_sub_callback, datatype, topic, callback, queue_size = 10, default_data = None):
-        self.data = default_data
-        self.subscription = create_sub_callback(
-            datatype,
-            topic,
-            callback,
-            queue_size
-        )
-
-class FSMNodePublisher:
-    publisher = None
-
-    def __init__(self, create_pub_callback, datatype, topic, queue_size = 10):
-        self.publisher = create_pub_callback(
-            datatype,
-            topic,
-            queue_size
-        )
-
-class FSMNode(Node, State):
-
-    subscribers = {}
-    publishers = {}
-
-    def __init__(self):
+class FSMNode(Node):
+    def __init__(self, fsm: StateMachine):
         super().__init__('fsm_node')
+        self.fsm = fsm
 
-        self.get_logger().info('[FSMNode] User input subscriber node has been started.')
+        self.move_pub = self.create_publisher(MoveData, 'move_update', 10)
+        self.shutdown_pub = self.create_publisher(Empty, 'emergency_shutdown', 10)
 
-    def add_subscription(self, datatype, topic, callback, queue_size = 10, default_data = None):
-        if topic in self.subscribers:
-            raise ValueError(f'Trying to add already existing subscriber {topic}.')
-
-        self.subscribers[topic] = FSMNodeSubscriber(
-            self.create_subscription,
-            datatype,
-            topic,
-            callback,
-            queue_size,
-            default_data
+        self.create_subscription(
+            MoveData,
+            'user_input',
+            self.user_input_callback,
+            10
         )
 
-    def add_publisher(self, datatype, topic, queue_size = 10):
-        if topic in self.publishers:
-            raise ValueError(f'Trying to add already existing publisher {topic}.')
+        self.get_logger().info("FSM Node started")
 
-        self.publishers[topic] = FSMNodePublisher(
-            self.create_publisher,
-            datatype,
-            topic,
-            queue_size
-        )
+    def user_input_callback(self, msg: MoveData):
+        event = {
+            "type": "user_input",
+            "data": msg
+        }
 
-    def user_input_sub_callback(self, msg):
-        # Do nothing (overriden in ManualState and AutomaticState)
+        self.fsm.dispatch(event)
+
+    def publish(self, topic: str, msg):
+        if topic == "move_update":
+            self.move_pub.publish(msg)
+
+        elif topic == "emergency_shutdown":
+            self.shutdown_pub.publish(msg)
+
+class ManualState(State):
+    def on_event(self, fsm, event):
+        if event["type"] == "user_input":
+            msg = event["data"]
+
+            fsm.publish("move_update", msg)
+
+            if msg.y_speed == 200:
+                fsm.transition("FAIL")
+
+class AutomaticState(State):
+    def on_event(self, fsm, event):
+        if event["type"] == "user_input":
+            ...
+
+class FailState(State):
+    def on_enter(self, fsm):
+        fsm.publish("emergency_shutdown", Empty())
+
+    def on_event(self, fsm, event):
         ...
 
-class BootingState(FSMNode):
-    ...
-
-class ManualState(FSMNode):
-    def user_input_sub_callback(self, msg):
-        self.get_logger().info(f'User Input: {msg.y_speed}, {msg.x_angle}')
-        self.subscribers['user_input'].data = msg
-        self.publishers['move_update'].publisher.publish(msg)
-
-        # TODO: Remove this test
-        if msg.y_speed == 200:
-            self.get_logger().warning('Shutting down FSM')
-            self.__switch_state__('FailState')
-
-class AutomaticState(FSMNode):
-    def user_input_sub_callback(self, msg):
-        self.get_logger().info(f'[IGNORED] User Input: {msg.speed}, {msg.angle} in automatic state.')
-
-class FailState(FSMNode):
-    def __init__(self):
-        super().__init__()
-        self.publishers['emergency_shutdown'].publisher.publish(Empty())
-
-    def user_input_sub_callback(self, msg):
-        self.get_logger().info(f'[IGNORED] User Input: {msg.speed}, {msg.angle} in fail state.')
+class BootingState(State):
+    def on_enter(self, fsm):
+        fsm.transition("MANUAL")
 
 def main(args=None):
-
-    DEFAULT_STATE = 'ManualState' # 'BootingState'
-
     rclpy.init(args=args)
 
-    FSM = StateMachine(
-        ['subscribers', 'publishers'],
-        ['add_subscription', 'user_input_sub_callback']
-    ) \
-        .add_state(BootingState) \
-        .add_state(ManualState) \
-        .add_state(AutomaticState) \
-        .add_state(FailState)
+    fsm = StateMachine()
 
-    FSM.spin(DEFAULT_STATE)
-    FSM.call(
-        'add_subscription',
-        MoveData,
-        'user_input',
-        lambda msg: FSM.call(
-            'user_input_sub_callback',
-            msg
-        ),
-        default_data = MoveData()
-    )
-    FSM.call(
-        'add_publisher',
-        MoveData,
-        'move_update'
-    )
-    FSM.call(
-        'add_publisher',
-        Empty,
-        'emergency_shutdown'
-    )
+    fsm.add_state("BOOT",   BootingState())
+    fsm.add_state("MANUAL", ManualState())
+    fsm.add_state("AUTO",   AutomaticState())
+    fsm.add_state("FAIL",   FailState())
 
-    rclpy.spin(FSM.active)
+    fsm.set_initial("MANUAL")
 
-    FSM.active.destroy_node()
+    node = FSMNode(fsm)
+
+    # inject ROS publish function into FSM
+    fsm.publish = node.publish
+
+    rclpy.spin(node)
+
+    node.destroy_node()
     rclpy.shutdown()
-
-if __name__ == '__main__':
-    main()

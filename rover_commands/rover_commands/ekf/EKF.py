@@ -1,6 +1,7 @@
 import numpy as np
 
-from utils import wrap_angle
+def wrap_angle(angle):
+    return (angle + np.pi) % (2 * np.pi) - np.pi
 
 class EKF:
 

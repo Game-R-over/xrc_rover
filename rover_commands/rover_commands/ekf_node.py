@@ -5,14 +5,23 @@ from nav_msgs.msg import Odometry
 from sensor_msgs.msg import Imu
 from geometry_msgs.msg import PoseStamped, TransformStamped
 
-from tf_transformations import quaternion_from_euler
+from scipy.spatial.transform import Rotation as R
 from tf2_ros import TransformBroadcaster
 
 import numpy as np
 import math
 
-from .ekf.ekf import EKF
-from .ekf.utils import wrap_angle
+from .ekf.EKF import EKF
+
+def quat_from_euler(roll, pitch, yaw):
+    return R.from_euler('xyz', [roll, pitch, yaw]).as_quat()
+
+def quat_to_yaw(self, q):
+    siny_cosp = 2 * (q.w * q.z + q.x * q.y)
+    cosy_cosp = 1 - 2 * (q.y * q.y + q.z * q.z)
+
+    return math.atan2(siny_cosp, cosy_cosp)
+
 
 class EKFNode(Node):
 
@@ -72,7 +81,7 @@ class EKFNode(Node):
         self.state_inputs[1] = msg.twist.twist.linear.y
 
     def imu_callback(self, msg: Imu):
-        theta = self.quat_to_yaw(msg.orientation)
+        theta = quat_to_yaw(msg.orientation)
         omega = msg.angular_velocity.z
 
         self.ekf.update_imu(np.array([theta, omega]))
@@ -82,7 +91,7 @@ class EKFNode(Node):
         x = msg.pose.position.x
         y = msg.pose.position.y
 
-        theta = self.quat_to_yaw(msg.pose.orientation)
+        theta = quat_to_yaw(msg.pose.orientation)
 
         self.ekf.update_aruco(np.array([x, y, theta]))
 
@@ -101,7 +110,7 @@ class EKFNode(Node):
 
         x, y, theta, vx, vy, omega, b = self.ekf.x
 
-        q = quaternion_from_euler(0, 0, theta)
+        q = quat_from_euler(0, 0, theta)
 
         msg = Odometry()
         msg.header.stamp = now.to_msg()
@@ -124,7 +133,7 @@ class EKFNode(Node):
     def publish_tf(self, now):
 
         x, y, theta, _, _, _, _ = self.ekf.x
-        q = quaternion_from_euler(0, 0, theta)
+        q = quat_from_euler(0, 0, theta)
 
         t = TransformStamped()
         t.header.stamp = now.to_msg()
@@ -142,9 +151,12 @@ class EKFNode(Node):
 
         self.tf_broadcaster.sendTransform(t)
 
-    def quat_to_yaw(self, q):
+def main(args=None):
+    rclpy.init(args=args)
+    node = EKFNode()
+    rclpy.spin(node)
+    node.destroy_node()
+    rclpy.shutdown()
 
-        siny_cosp = 2 * (q.w * q.z + q.x * q.y)
-        cosy_cosp = 1 - 2 * (q.y * q.y + q.z * q.z)
-
-        return math.atan2(siny_cosp, cosy_cosp)
+if __name__ == '__main__':
+    main()
