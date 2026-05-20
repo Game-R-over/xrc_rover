@@ -34,7 +34,7 @@ class GamepadPublisher(Node):
         self.user_input_wheels_publisher = self.create_publisher(MoveData, 'user_input', 10)
         self.user_input_arm_position_publisher = self.create_publisher(Vec2, 'arm_position_update', 10) 
         self.user_input_arm_angle_publisher = self.create_publisher(Int32, 'arm_angle_update', 10) 
-        self.user_input_arm_claw_publisher= self.create_publisher(Int32,'arm_claw_update', 10)
+        self.user_input_arm_claw_publisher= self.create_publisher(Int32, 'arm_claw_update', 10)
 
         self.get_logger().info('[START]')
         
@@ -44,19 +44,16 @@ class GamepadPublisher(Node):
             self.get_user_input,
             10
         )
+
+        arm_position.x = 5
+        arm_position.y = 5
         
     def get_user_input(self, msg):
 
         # DCs + Servos
     
-
-        if abs(msg.axis_right_y)> 0.05:
-                self.data.y_speed = msg.axis_right_y
-        else: self.data.y_speed = 0.0
-            
-        if abs(msg.axis_right_x) > 0.05:
-            self.data.x_angle = msg.axis_right_x
-        else: self.data.x_angle = 0.0
+        self.data.y_speed = msg.axis_right_x if abs(msg.axis_right_y) > 0.05 else 0.0
+        self.data.x_angle = msg.axis_right_y if abs(msg.axis_right_y) > 0.05 else 0.0
      
         self.user_input_wheels_publisher.publish(self.data)
         self.get_logger().info(f'Current data:\n\tspeed:{self.data.y_speed}\n\tangle:{self.data.x_angle}')
@@ -66,7 +63,7 @@ class GamepadPublisher(Node):
         if msg.trigger_left > 0.5:
             self.arm_base_angle = max(self.arm_base_angle - self.ANGLE_INCREMENT, self.MIN_ARM_BASE_ANGLE)
         
-        if msg.trigger_right > 0.5 and self.arm_base_angle < self.MAX_ARM_BASE_ANGLE - self.ANGLE_INCREMENT:
+        if msg.trigger_right > 0.5:
             self.arm_base_angle = min(self.arm_base_angle + self.ANGLE_INCREMENT, self.MAX_ARM_BASE_ANGLE)
         
         angle_message = Int32()
@@ -86,8 +83,10 @@ class GamepadPublisher(Node):
         claw_message.data = self.arm_claw_angle
         self.user_input_arm_claw_publisher.publish(claw_message)
 
-        self.arm_position.x = math.floor(msg.axis_left_x * self.ARM_RANGE)
-        self.arm_position.y = math.floor(msg.axis_left_y * self.ARM_RANGE)
+        # ARM Position
+
+        self.arm_position.x += math.floor(msg.axis_left_x * self.ANGLE_INCREMENT)
+        self.arm_position.y += math.floor(msg.axis_left_y * self.ANGLE_INCREMENT)
 
         self.user_input_arm_position_publisher.publish(self.arm_position)
 
