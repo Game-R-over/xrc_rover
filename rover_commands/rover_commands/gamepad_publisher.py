@@ -45,15 +45,15 @@ class GamepadPublisher(Node):
             10
         )
 
-        arm_position.x = 5
-        arm_position.y = 5
+        self.arm_position.x = 5
+        self.arm_position.y = 5
         
     def get_user_input(self, msg):
 
         # DCs + Servos
     
-        self.data.y_speed = msg.axis_right_x if abs(msg.axis_right_y) > 0.05 else 0.0
-        self.data.x_angle = msg.axis_right_y if abs(msg.axis_right_y) > 0.05 else 0.0
+        self.data.y_speed = msg.axis_right_y if abs(msg.axis_right_y) > 0.05 else 0.0
+        self.data.x_angle = msg.axis_right_x if abs(msg.axis_right_x) > 0.05 else 0.0
      
         self.user_input_wheels_publisher.publish(self.data)
         self.get_logger().info(f'Current data:\n\tspeed:{self.data.y_speed}\n\tangle:{self.data.x_angle}')

@@ -1,6 +1,6 @@
 import math
 
-def rover_drive(x, y, Vmax, Kmax, W, Lf, Lr, theta_max_deg=30):
+def rover_drive(x, y, Vmax, Kmax, W, Lf, Lr, theta_max_deg=60):
 
     theta_max = math.radians(theta_max_deg)
 
