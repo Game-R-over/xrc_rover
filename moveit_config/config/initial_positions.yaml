@@ -1,0 +1,8 @@
+# Default initial positions for rover's ros2_control fake system
+
+initial_positions:
+  arm_yaw_joint: 0.0
+  elbow_joint: 0.0
+  left_finger_joint: 0.0
+  right_finger_joint: 0.0
+  shoulder_joint: 0.0

@@ -1,0 +1,10 @@
+moveit_setup_assistant_config:
+  urdf:
+    package: rover_commands
+    relative_path: urdf/rover.urdf.xacro
+  srdf:
+    relative_path: config/rover.srdf
+  package_settings:
+    author_name: AquIce
+    author_email: aquice.dev@gmail.com
+    generated_timestamp: 1779352858

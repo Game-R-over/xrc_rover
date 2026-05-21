@@ -1,5 +1,8 @@
 import math
 
+def clamp(value, m, M):
+    return max(m, min(M, value))
+
 class Vec2:
     x: float = 0
     y: float = 0
@@ -17,18 +20,15 @@ class Vec2:
     def phi(self):
         return math.atan2(self.y, self.x)
 
-    def str(self) -> str:
-        return f'( {self.x}, {self.y} )';
+    def __str__(self) -> str:
+        return f'( {self.x}, {self.y} )'
 
 class ArmData:
-    length: float = 10
+    length: float = 15
     angles: list[float] = [0, 0]
 
     def cumulativeAngle(self, num: int) -> float:
-        angle = 0.0
-        for i in range(num + 1):
-            angle += self.angles[i]
-        return angle
+        return sum(self.angles[:num + 1])
 
     def computeXY(self) -> Vec2:
         return Vec2(
@@ -46,7 +46,11 @@ class ArmData:
             coords.y /= k
 
         # Angle between the two segments
-        cos_beta = (coords.rSquared() - 2 * self.length * self.length) / (2 * self.length * self.length)
+        cos_beta = clamp(
+            (coords.rSquared() - 2 * self.length * self.length) / (2 * self.length * self.length),
+            -1.0,
+            1.0
+        )
         self.angles[1] = -math.acos(cos_beta)
 
         # Base angle
@@ -68,8 +72,8 @@ class ArmData:
 if __name__ == '__main__':
     arm = ArmData()
     arm.computeAngles(
-        Vec2(20, 12)
+        Vec2(2, 0)
     )
 
-    print(arm.computeXY().str())
+    print(arm.computeXY())
     print(arm.str())

@@ -18,6 +18,7 @@ RUN apt-get install -y ros-humble-rosbridge-suite
 # Install g++ 12 (for std::expected)
 RUN apt-get install -y g++-12
 RUN usermod -a -G dialout xplore
+#RUN pip install opencv-python torch torchvision ultralytics
 
 # Add USB rules
 RUN echo 'SUBSYSTEM=="usb", ATTRS{idVendor}=="03e7", MODE="0666"' | sudo tee /etc/udev/rules.d/80-movidius.rules

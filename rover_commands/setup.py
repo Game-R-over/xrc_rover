@@ -37,6 +37,9 @@ setup(
             'arm_manager = rover_commands.arm_manager:main',
             'odometry_manager = rover_commands.odometry_manager:main',
             'vision = rover_commands.vision:main',
+            'ekf = rover_commands.ekf_node:main',
+            'trajectory_bridge = rover_commands.trajectory_bridge:main',
+            'armtest = rover_commands.arm_go_test:main',
         ],
     },
 )

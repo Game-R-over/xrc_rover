@@ -10,6 +10,7 @@ class FSMNode(Node):
     def __init__(self, fsm: StateMachine):
         super().__init__('fsm_node')
         self.fsm = fsm
+        fsm.goal = None
 
         self.move_pub = self.create_publisher(MoveData, 'move_update', 10)
         self.shutdown_pub = self.create_publisher(Empty, 'emergency_shutdown', 10)
@@ -40,6 +41,10 @@ class FSMNode(Node):
 
 class ManualState(State):
     def on_event(self, fsm, event):
+
+        if event["type"] == "emergency":
+            fsm.transition("FAIL")
+
         if event["type"] == "user_input":
             msg = event["data"]
 
@@ -50,8 +55,43 @@ class ManualState(State):
 
 class AutomaticState(State):
     def on_event(self, fsm, event):
+
+        if event["type"] == "emergency":
+            fsm.transition("FAIL")
+
+        if event["type"] == "obstacle":
+            if event["severity"] > 5:
+                # TODO: Add stop_cmd()
+                fsm.publish("move_update", stop_cmd())
+                return
+
+            if event["distance"] < 0.8:
+                cmd = self.avoid_vector(event)
+                fsm.publish("move_update", cmd)
+                return
+
+        if event["type"] == "aruco":
+            fsm.goal = (event["x"], event["y"])
+            cmd = self.go_to_target()
+            fsm.publish("move_update", cmd)
+            return
+
         if event["type"] == "user_input":
             ...
+
+    def avoid_vector(obstacle):
+        strength = 1.0 / (obstacle["distance"] + 0.1)
+
+        return {
+            "linear_x": 0.2,
+            "angular_z": -obstacle["angle"] * strength
+        }
+
+    def go_to_target():
+        return {
+            "linear_x": 0.5,
+            "angular_z": -0.8 * fsm.goal[1]
+        }
 
 class FailState(State):
     def on_enter(self, fsm):
