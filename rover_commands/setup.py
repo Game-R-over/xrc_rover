@@ -37,6 +37,7 @@ setup(
             'arm_manager = rover_commands.arm_manager:main',
             'odometry_manager = rover_commands.odometry_manager:main',
             'vision = rover_commands.vision:main',
+            'ultrasonic_node = rover_commands.ultrasonics_sensors_manager:main',
         ],
     },
 )
