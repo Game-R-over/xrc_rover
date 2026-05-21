@@ -1,63 +1,215 @@
 <?xml version="1.0"?>
 <robot name="rover" xmlns:xacro="http://www.ros.org/wiki/xacro">
 
-  <xacro:property name="base_width" value="0.5"/>
-  <xacro:property name="base_length_front" value="0.30"/>
-  <xacro:property name="base_length_back" value="0.25"/>
+  
+  <!-- ============================================ -->
+  <!-- DIMENSIONS                                   -->
+  <!-- ============================================ -->
 
-  <xacro:property name="wheels_servos_zoff" value="0.136"/>
-  <xacro:property name="wheels_zoff_from_servo" value="0.136"/>
+  <xacro:property name="steer_block_size_x" value="0.046"/>
+  <xacro:property name="steer_block_size_y" value="0.046"/>
+  <xacro:property name="steer_block_size_z" value="0.046"/>
+
+  <xacro:property name="steer_zoff" value="0.173"/>
+
+  <xacro:property name="wheel_attach_zoff" value="0.0"/>
+
+  <xacro:property name="chassis_length" value="0.430"/>  <!-- X -->
+  <xacro:property name="chassis_width"  value="0.366"/>  <!-- Y -->
+  <xacro:property name="chassis_height" value="0.1"/>  <!-- Z -->
+
+  <xacro:property name="wheel_x_front"    value="0.281"/>
+  <xacro:property name="wheel_x_middle"   value="-0.019"/>
+  <xacro:property name="wheel_x_back"     value="-0.2685"/>
+  <xacro:property name="wheel_half_track" value="0.235"/>
+
+  <xacro:property name="wheels_zoff" value="0.173"/>
+
+  <xacro:property name="top_block_size_x" value="0.03"/>
+  <xacro:property name="top_block_size_y" value="0.073"/>
+  <xacro:property name="top_block_size_z" value="0.02"/>
+
+  <xacro:property name="wheel_radius" value="0.067"/>
+  <xacro:property name="wheel_width"  value="0.040"/>
 
   <xacro:property name="cam_xoff" value="0.1"/>
   <xacro:property name="cam_zoff" value="0.1"/>
-
   <xacro:property name="imu_xoff" value="0.1"/>
   <xacro:property name="imu_zoff" value="0.1"/>
 
-  <xacro:property name="arm_base_xoff" value="0.1"/>
+  <xacro:property name="arm_base_xoff" value="0.195"/>
   <xacro:property name="arm_base_zoff" value="0.1"/>
   <xacro:property name="arm_segment_length" value="0.15"/>
-  <xacro:property name="arm_gripper_offset" value="0.05"/>
+  <xacro:property name="arm_gripper_offset" value="0"/>
   <xacro:property name="arm_gripper_finger_offset" value="0.025"/>
 
-  <xacro:macro name="wheel" params="name y_reflect fb_offset">
+  <xacro:property name="joint_radius" value="0.018"/>
+  <xacro:property name="joint_length" value="0.030"/>
 
-	<link name="steer_wheel_${name}"/>
+  <xacro:property name="arm_link_radius" value="0.012"/>
 
-	<joint name="steer_wheel_${name}_joint" type="revolute">
-	  <parent link="base_link"/>
-	  <child link="steer_wheel_${name}"/>
-      <origin xyz="${fb_offset} ${y_reflect*(base_width/2)} ${-wheels_servos_zoff}" rpy="0 0 0"/>
-	  <axis xyz="0 0 1"/>
-	  <limit lower="-${pi / 2}" upper="${pi / 2}" effort="10" velocity="2"/>
-	</joint>
+  <xacro:property name="finger_size_x" value="0.040"/>
+  <xacro:property name="finger_size_y" value="0.010"/>
+  <xacro:property name="finger_size_z" value="0.020"/>
 
-	<link name="wheel_${name}" />
+  <xacro:macro name="wheel_unit" params="name fb_offset y_reflect has_servo:=true">
 
-    <joint name="wheel_${name}_joint" type="continuous">
-      <parent link="steer_wheel_${name}"/>
-      <child link="wheel_${name}"/>
-	  <axis xyz="0 1 0"/>
-      <origin xyz="0 0 ${-wheels_zoff_from_servo}" rpy="0 0 0"/>
-    </joint>
+    <link name="top_block_${name}">
+      <visual>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <box size="${top_block_size_x} ${top_block_size_y} ${top_block_size_z}"/>
+        </geometry>
+        <material name="block_purple">
+          <color rgba="0.4 0.3 0.7 1.0"/>
+        </material>
+      </visual>
+	  <collision>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <box size="${top_block_size_x} ${top_block_size_y} ${top_block_size_z}"/>
+        </geometry>
+        <material name="block_purple">
+          <color rgba="0.4 0.3 0.7 1.0"/>
+        </material>
+      </collision>
+    </link>
 
-  </xacro:macro>
-
-  <xacro:macro name="wheel_no_steer" params="name y_reflect">
-
-	<link name="wheel_${name}" />
-
-    <joint name="wheel_${name}_joint" type="continuous">
+    <joint name="top_block_${name}_joint" type="fixed">
       <parent link="base_link"/>
+      <child link="top_block_${name}"/>
+      <origin xyz="${fb_offset} ${y_reflect * wheel_half_track} 0" rpy="0 0 0"/>
+    </joint>
+
+    <link name="steer_block_${name}">
+      <visual>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <box size="${steer_block_size_x} ${steer_block_size_y} ${steer_block_size_z}"/>
+        </geometry>
+        <material name="steer_orange">
+          <color rgba="0.9 0.6 0.2 1.0"/>
+        </material>
+      </visual>
+	  <collision>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <box size="${steer_block_size_x} ${steer_block_size_y} ${steer_block_size_z}"/>
+        </geometry>
+        <material name="steer_orange">
+          <color rgba="0.9 0.6 0.2 1.0"/>
+        </material>
+      </collision>
+    </link>
+
+    <xacro:if value="${has_servo}">
+      <joint name="steer_${name}_joint" type="revolute">
+        <parent link="top_block_${name}"/>
+        <child link="steer_block_${name}"/>
+        <origin xyz="0 0 ${-steer_zoff}" rpy="0 0 0"/>
+        <axis xyz="0 0 1"/>
+        <limit lower="${-pi/2}" upper="${pi/2}" effort="10.0" velocity="2.0"/>
+      </joint>
+    </xacro:if>
+
+    <xacro:unless value="${has_servo}">
+      <joint name="steer_${name}_joint" type="fixed">
+        <parent link="top_block_${name}"/>
+        <child link="steer_block_${name}"/>
+        <origin xyz="0 0 ${-steer_zoff}" rpy="0 0 0"/>
+      </joint>
+    </xacro:unless>
+
+    <link name="wheel_${name}">
+      <visual>
+        <origin xyz="0 0 0" rpy="${pi/2} 0 0"/>
+        <geometry>
+          <cylinder radius="${wheel_radius}" length="${wheel_width}"/>
+        </geometry>
+        <material name="wheel_black">
+          <color rgba="0.1 0.1 0.1 1.0"/>
+        </material>
+      </visual>
+	  <collision>
+        <origin xyz="0 0 0" rpy="${pi/2} 0 0"/>
+        <geometry>
+          <cylinder radius="${wheel_radius}" length="${wheel_width}"/>
+        </geometry>
+        <material name="wheel_black">
+          <color rgba="0.1 0.1 0.1 1.0"/>
+        </material>
+      </collision>
+    </link>
+
+    <joint name="wheel_${name}_joint" type="continuous">
+      <parent link="steer_block_${name}"/>
       <child link="wheel_${name}"/>
-	  <axis xyz="0 1 0"/>
-      <origin xyz="0 ${y_reflect*(base_width/2)} ${-wheels_servos_zoff - wheels_zoff_from_servo}" rpy="0 0 0"/>
+      <origin xyz="0 0 ${-wheel_attach_zoff}" rpy="0 0 0"/>
+      <axis xyz="0 1 0"/>
     </joint>
 
   </xacro:macro>
+
+  <xacro:macro name="revolute_joint_visual" params="link_name radius length r g b">
+
+    <link name="${link_name}">
+      <visual>
+        <origin xyz="0 0 0" rpy="1.5708 0 0"/>
+        <geometry>
+          <cylinder radius="${radius}" length="${length}"/>
+        </geometry>
+
+        <material name="${link_name}_mat">
+          <color rgba="${r} ${g} ${b} 1.0"/>
+        </material>
+      </visual>
+	  <collision>
+        <origin xyz="0 0 0" rpy="1.5708 0 0"/>
+        <geometry>
+          <cylinder radius="${radius}" length="${length}"/>
+        </geometry>
+
+        <material name="${link_name}_mat">
+          <color rgba="${r} ${g} ${b} 1.0"/>
+        </material>
+      </collision>
+    </link>
+
+  </xacro:macro>
+
+  <xacro:macro name="arm_segment_visual" params="link_name length radius r g b">
+
+    <link name="${link_name}">
+      <visual>
+        <origin xyz="0 0 ${length/2}" rpy="0 0 0"/>
+
+        <geometry>
+          <cylinder radius="${radius}" length="${length}"/>
+        </geometry>
+
+        <material name="${link_name}_mat">
+          <color rgba="${r} ${g} ${b} 1.0"/>
+        </material>
+      </visual>
+	  <collision>
+        <origin xyz="0 0 ${length/2}" rpy="0 0 0"/>
+
+        <geometry>
+          <cylinder radius="${radius}" length="${length}"/>
+        </geometry>
+
+        <material name="${link_name}_mat">
+          <color rgba="${r} ${g} ${b} 1.0"/>
+        </material>
+      </collision>
+    </link>
+
+  </xacro:macro>
+
+
 
   <!-- ===================== -->
-  <!-- BASE -->
+  <!-- WHEELS -->
   <!-- ===================== -->
 
   <link name="base_footprint" />
@@ -68,19 +220,39 @@
 	<origin xyz="0 0 0" rpy="0 0 0"/>
   </joint>
 
-  <link name="base_link"/>
+  <link name="base_link">
+    <visual>
+      <origin xyz="0 0 ${chassis_height/2}" rpy="0 0 0"/>
+      <geometry>
+        <box size="${chassis_length} ${chassis_width} ${chassis_height}"/>
+      </geometry>
+      <material name="chassis_grey">
+        <color rgba="0.85 0.85 0.85 1.0"/>
+      </material>
+    </visual>
+	<collision>
+      <origin xyz="0 0 ${chassis_height/2}" rpy="0 0 0"/>
+      <geometry>
+        <box size="${chassis_length} ${chassis_width} ${chassis_height}"/>
+      </geometry>
+      <material name="chassis_grey">
+        <color rgba="0.85 0.85 0.85 1.0"/>
+      </material>
+    </collision>
+  </link>
 
   <!-- ===================== -->
-  <!-- WHEELS (6-wheel rover) -->
+  <!-- WHEELS -->
   <!-- ===================== -->
 
-  <xacro:wheel name="fl" y_reflect="1" fb_offset="${base_length_front}" />
-  <xacro:wheel name="fr" y_reflect="-1" fb_offset="${base_length_front}" />
-  <xacro:wheel_no_steer name="ml" y_reflect="1" />
-  <xacro:wheel_no_steer name="mr" y_reflect="-1" />
-  <xacro:wheel name="bl" y_reflect="1" fb_offset="-${base_length_back}" />
-  <xacro:wheel name="br" y_reflect="-1" fb_offset="-${base_length_back}" />
+  <xacro:wheel_unit name="fl" fb_offset="${wheel_x_front}"  y_reflect="1"  has_servo="true"/>
+  <xacro:wheel_unit name="fr" fb_offset="${wheel_x_front}"  y_reflect="-1" has_servo="true"/>
+  <xacro:wheel_unit name="ml" fb_offset="${wheel_x_middle}" y_reflect="1"  has_servo="false"/>
+  <xacro:wheel_unit name="mr" fb_offset="${wheel_x_middle}" y_reflect="-1" has_servo="false"/>
+  <xacro:wheel_unit name="bl" fb_offset="${wheel_x_back}"   y_reflect="1"  has_servo="true"/>
+  <xacro:wheel_unit name="br" fb_offset="${wheel_x_back}"   y_reflect="-1" has_servo="true"/>
 
+  
   <!-- ===================== -->
   <!-- CAMERA -->
   <!-- ===================== -->
@@ -114,19 +286,24 @@
   <joint name="arm_mount_joint" type="fixed">
     <parent link="base_link"/>
     <child link="arm_base_link"/>
-	<origin xyz="${arm_base_xoff} 0 ${arm_base_zoff}" rpy="0 0 0"/>
+		<origin xyz="${arm_base_xoff} 0 ${arm_base_zoff}" rpy="0 0 0"/>
   </joint>
 
   <!-- YAW (BASE ROTATION) -->
 
-  <link name="arm_yaw_link"/>
+  <xacro:revolute_joint_visual
+    link_name="arm_yaw_link"
+    radius="${joint_radius}"
+    length="${joint_length}"
+	r="0.8" g="0.2" b="0.2"
+  />
 
   <joint name="arm_yaw_joint" type="revolute">
     <parent link="arm_base_link"/>
     <child link="arm_yaw_link"/>
     <origin xyz="0 0 0" rpy="0 0 0"/>
     <axis xyz="0 0 1"/>   <!-- vertical rotation -->
-	<limit lower="-${pi / 2}" upper="${pi / 2}" effort="10" velocity="2"/>
+	<limit lower="-${pi/2}" upper="${pi/2}" effort="10.0" velocity="2.0"/>
   </joint>
 
   <link name="arm_planar_frame"/>
@@ -138,35 +315,51 @@
 
   <!-- SHOULDER (PITCH) -->
 
-  <link name="shoulder_link"/>
+  <xacro:arm_segment_visual
+    link_name="shoulder_link"
+    length="${arm_segment_length}"
+    radius="${arm_link_radius}"
+	r="0.2" g="0.7" b="0.2"
+  />
 
   <joint name="shoulder_joint" type="revolute">
     <parent link="arm_planar_frame"/>
     <child link="shoulder_link"/>
-	<origin xyz="0 0 ${arm_segment_length}" rpy="0 0 0"/>
+	<origin xyz="0 0 0" rpy="0 0 0"/>
     <axis xyz="0 1 0"/>
-	<limit lower="0" upper="${pi}" effort="10" velocity="2"/>
+	<limit lower="-${pi/2}" upper="${pi/2}" effort="10.0" velocity="2.0"/>
   </joint>
 
   <!-- ELBOW (PITCH) -->
 
-  <link name="elbow_link"/>
+  <xacro:arm_segment_visual
+    link_name="elbow_link"
+    length="${arm_segment_length}"
+    radius="${arm_link_radius}"
+	r="0.2" g="0.2" b="0.8"
+  />
 
   <joint name="elbow_joint" type="revolute">
 	<parent link="shoulder_link"/>
 	<child link="elbow_link"/>
 	<origin xyz="0 0 ${arm_segment_length}" rpy="0 0 0"/>
 	<axis xyz="0 1 0"/>
-	<limit lower="0" upper="${pi}" effort="10" velocity="2"/>
+	<limit lower="-${pi/2}" upper="${pi/2}" effort="10.0" velocity="2.0"/>
   </joint>
 
   <!-- WRIST -->
 
-  <link name="wrist_link"/>
+  <xacro:revolute_joint_visual
+    link_name="wrist_link"
+    radius="${joint_radius}"
+    length="${joint_length}"
+	r="0.8" g="0.8" b="0.2"
+  />
 
   <joint name="wrist_fixed" type="fixed">
 	<parent link="elbow_link"/>
 	<child link="wrist_link"/>
+	<origin xyz="0 0 ${arm_segment_length}" rpy="0 0 0"/>
   </joint>
 
   <!-- GRIPPER -->
@@ -178,24 +371,70 @@
 	<origin xyz="0 0 ${arm_gripper_offset}" rpy="0 0 0"/>
   </joint>
 
-  <link name="left_finger_link"/>
+  <link name="left_finger_link">
+	<visual>
+	  <origin xyz="${finger_size_x/2} 0 0" rpy="0 0 0"/>
+
+	  <geometry>
+		<box size="${finger_size_x} ${finger_size_y} ${finger_size_z}"/>
+	  </geometry>
+
+	  <material name="finger_mat">
+		<color rgba="0.7 0.7 0.7 1.0"/>
+	  </material>
+	</visual>
+	<collision>
+	  <origin xyz="${finger_size_x/2} 0 0" rpy="0 0 0"/>
+
+	  <geometry>
+		<box size="${finger_size_x} ${finger_size_y} ${finger_size_z}"/>
+	  </geometry>
+
+	  <material name="finger_mat">
+		<color rgba="0.7 0.7 0.7 1.0"/>
+	  </material>
+	</collision>
+  </link>
 
   <joint name="left_finger_joint" type="prismatic">
     <parent link="gripper_base_link"/>
     <child link="left_finger_link"/>
 	<origin xyz="0 ${arm_gripper_finger_offset} 0" rpy="0 0 0"/>
     <axis xyz="0 1 0"/>
-	<limit lower="0.0" upper="${arm_gripper_finger_offset}" effort="10" velocity="0.1"/>
+	<limit lower="-${arm_gripper_finger_offset - finger_size_y / 2}" upper="0.0" effort="10" velocity="0.1"/>
   </joint>
 
-  <link name="right_finger_link"/>
+  <link name="right_finger_link">
+	<visual>
+	  <origin xyz="${finger_size_x/2} 0 0" rpy="0 0 0"/>
+
+	  <geometry>
+		<box size="${finger_size_x} ${finger_size_y} ${finger_size_z}"/>
+	  </geometry>
+
+	  <material name="finger_mat">
+		<color rgba="0.7 0.7 0.7 1.0"/>
+	  </material>
+	</visual>
+	<collision>
+	  <origin xyz="${finger_size_x/2} 0 0" rpy="0 0 0"/>
+
+	  <geometry>
+		<box size="${finger_size_x} ${finger_size_y} ${finger_size_z}"/>
+	  </geometry>
+
+	  <material name="finger_mat">
+		<color rgba="0.7 0.7 0.7 1.0"/>
+	  </material>
+	</collision>
+  </link>
 
   <joint name="right_finger_joint" type="prismatic">
     <parent link="gripper_base_link"/>
     <child link="right_finger_link"/>
 	<origin xyz="0 -${arm_gripper_finger_offset} 0" rpy="0 0 0"/>
     <axis xyz="0 -1 0"/>
-	<limit lower="0.0" upper="${arm_gripper_finger_offset}" effort="10" velocity="0.1"/>
+	<limit lower="-${arm_gripper_finger_offset - finger_size_y / 2}" upper="0.0" effort="10" velocity="0.1"/>
   </joint>
 
 </robot>
