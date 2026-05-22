@@ -1,8 +1,9 @@
 import rclpy
 from rclpy.node import Node
-from sensor_msgs.msg import Image
+from sensor_msgs.msg import Image, CompressedImage
 from std_msgs.msg import String
 from cv_bridge import CvBridge
+from rclpy.qos import qos_profile_sensor_data
 
 import cv2
 import torch
@@ -74,18 +75,30 @@ def smooth_depth(depth):
     prev_depth = (1 - SMOOTHING_ALPHA) * prev_depth + SMOOTHING_ALPHA * depth
     return prev_depth
 
+import threading
+
 class VisionNode(Node):
     def __init__(self):
         super().__init__('vision_node')
         
         self.bridge = CvBridge()
         self.current_mode = None
+        self.running = False
+        self.latest_frame = None
         
         self.mode_subscriber = self.create_subscription(
             String,
             '/camera/mode',
             self.callback_mode,
             10
+        )
+        
+        # Native zero-latency subscriber
+        self.image_subscriber = self.create_subscription(
+            CompressedImage,
+            '/camera/image_raw/compressed',
+            self.callback_image,
+            qos_profile_sensor_data
         )
         
         self.image_publisher = self.create_publisher(
@@ -96,35 +109,43 @@ class VisionNode(Node):
         
         self.start('navigation')
 
+    def callback_image(self, msg):
+        # Decode the JPEG natively
+        np_arr = np.frombuffer(msg.data, np.uint8)
+        self.latest_frame = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+
     def callback_mode(self, msg):
         if msg.data != self.current_mode:
             self.start(msg.data)
 
     def start(self, mode):
+        import time
         self.stop()
         self.current_mode = mode
+        self.running = True
+        self.latest_frame = None
+        self.last_time = time.time()
+        self.fps = 0.0
         
-        pipeline = (
-            'udpsrc port=5000 '
-            'caps="application/x-rtp,media=video,clock-rate=90000,encoding-name=H264" ! '
-            'rtph264depay ! avdec_h264 ! videoconvert ! '
-            'video/x-raw,format=BGR ! '
-            'appsink drop=1 max-buffers=1 sync=false'
-        )
+        self.get_logger().info(f'Réception démarrée via ROS 2 CompressedImage : {mode}')
         
-        self.cap = cv2.VideoCapture(pipeline, cv2.CAP_GSTREAMER)
-        
-        fps = 30 if mode == 'navigation' else 5
-        period = 1.0 / fps
-        self.timer = self.create_timer(period, self.read_frame)
+        fps_target = 30 if mode == 'navigation' else 5
+        period = 1.0 / fps_target
+        self.timer = self.create_timer(period, self.process_frame)
 
-    def read_frame(self):
-        if not hasattr(self, 'cap') or not self.cap.isOpened():
-            return
+    def process_frame(self):
+        import time
+        current_time = time.time()
+        time_diff = current_time - self.last_time
+        if time_diff > 0:
+            self.fps = (self.fps * 0.9) + ((1.0 / time_diff) * 0.1)  # Smooth FPS
+        self.last_time = current_time
         
-        ret, frame = self.cap.read()
-        if not ret:
+        if self.latest_frame is None:
+            self.get_logger().warn("Waiting for stream... (Make sure camera_publisher.py is running on the Pi!)")
             return
+            
+        frame = self.latest_frame.copy()
 
         encoding = 'mono8' if self.current_mode == 'navigation' else 'bgr8'
         if encoding == 'mono8':
@@ -136,42 +157,52 @@ class VisionNode(Node):
         
         frame_resized = cv2.resize(frame, FRAME)
         
-        # YOLO
-        results = yolo_model(frame_resized, verbose=False)[0]
-        detections = results.boxes
+        if self.current_mode == 'autonomy':
+            # --- Autonomy Mode: Heavy AI Processing ---
+            
+            # YOLO
+            results = yolo_model(frame_resized, verbose=False)[0]
+            detections = results.boxes
 
-        # MiDaS
-        depth_input = midas_transform(frame_resized).to(device)
+            # MiDaS
+            depth_input = midas_transform(frame_resized).to(device)
 
-        with torch.no_grad():
-            depth_output = midas_model(depth_input)
-            depth_map = postprocess_depth(depth_output, FRAME[0], FRAME[1])
+            with torch.no_grad():
+                depth_output = midas_model(depth_input)
+                depth_map = postprocess_depth(depth_output, FRAME[0], FRAME[1])
 
-        # Normalize & Smooth Depth
-        depth_map = normalize_depth_stable(depth_map)
-        if USE_INVERTED_DEPTH:
-            depth_map = 1.0 - depth_map
-        depth_map = smooth_depth(depth_map)
+            # Normalize & Smooth Depth
+            depth_map = normalize_depth_stable(depth_map)
+            if USE_INVERTED_DEPTH:
+                depth_map = 1.0 - depth_map
+            depth_map = smooth_depth(depth_map)
 
-        # Visualization
-        vis = frame_resized.copy()
-        for box in detections:
-            x1, y1, x2, y2 = map(int, box.xyxy[0].cpu().numpy())
-            cv2.rectangle(vis, (x1, y1), (x2, y2), (0, 0, 255), 2)
+            # Visualization
+            vis = frame_resized.copy()
+            for box in detections:
+                x1, y1, x2, y2 = map(int, box.xyxy[0].cpu().numpy())
+                cv2.rectangle(vis, (x1, y1), (x2, y2), (0, 0, 255), 2)
 
-        depth_vis = (depth_map * 255).astype(np.uint8)
-        depth_vis = cv2.applyColorMap(depth_vis, cv2.COLORMAP_MAGMA)
+            depth_vis = (depth_map * 255).astype(np.uint8)
+            depth_vis = cv2.applyColorMap(depth_vis, cv2.COLORMAP_MAGMA)
 
-        combined = np.hstack((vis, depth_vis))
+            combined = np.hstack((vis, depth_vis))
+            
+        else:
+            # --- Navigation Mode: Lightweight ---
+            combined = frame_resized.copy()
+            
+        # Draw FPS Counter
+        fps_text = f"FPS: {int(self.fps)}"
+        cv2.putText(combined, fps_text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
 
-        cv2.imshow("RGB | Depth", combined)
+        cv2.imshow("Rover Feed", combined)
         cv2.waitKey(1)
 
     def stop(self):
-        if hasattr(self, 'timer'):
+        self.running = False
+        if hasattr(self, 'timer') and self.timer is not None:
             self.timer.cancel()
-        if hasattr(self, 'cap'):
-            self.cap.release()
             
     def destroy_node(self):
         self.stop()
