@@ -3,17 +3,29 @@ from .fsm_lib.fsm import StateMachine, State
 import rclpy
 from rclpy.node import Node
 
-from std_msgs.msg import Empty
+from std_msgs.msg import Empty, String
 from custom_msg.msg import MoveData
+
+def stop_cmd():
+    msg = MoveData()
+    msg.x = 0
+    msg.y = 0
 
 class FSMNode(Node):
     def __init__(self, fsm: StateMachine):
         super().__init__('fsm_node')
         self.fsm = fsm
+        fsm.goal = None
 
         self.move_pub = self.create_publisher(MoveData, 'move_update', 10)
         self.shutdown_pub = self.create_publisher(Empty, 'emergency_shutdown', 10)
 
+        self.create_subscription(
+            String,
+            'state_switch',
+            self.state_switch_callback,
+            10
+        )
         self.create_subscription(
             MoveData,
             'user_input',
@@ -31,6 +43,9 @@ class FSMNode(Node):
 
         self.fsm.dispatch(event)
 
+    def state_switch_callback(self, msg: String):
+        self.fsm.transition(msg.data)
+
     def publish(self, topic: str, msg):
         if topic == "move_update":
             self.move_pub.publish(msg)
@@ -40,6 +55,10 @@ class FSMNode(Node):
 
 class ManualState(State):
     def on_event(self, fsm, event):
+
+        if event["type"] == "emergency":
+            fsm.transition("FAIL")
+
         if event["type"] == "user_input":
             msg = event["data"]
 
@@ -50,8 +69,42 @@ class ManualState(State):
 
 class AutomaticState(State):
     def on_event(self, fsm, event):
+
+        if event["type"] == "emergency":
+            fsm.transition("FAIL")
+
+        if event["type"] == "obstacle":
+            if event["severity"] > 5:
+                fsm.publish("move_update", stop_cmd())
+                return
+
+            if event["distance"] < 0.8:
+                cmd = self.avoid_vector(event)
+                fsm.publish("move_update", cmd)
+                return
+
+        if event["type"] == "aruco":
+            fsm.goal = (event["x"], event["y"])
+            cmd = self.go_to_target()
+            fsm.publish("move_update", cmd)
+            return
+
         if event["type"] == "user_input":
             ...
+
+    def avoid_vector(obstacle):
+        strength = 1.0 / (obstacle["distance"] + 0.1)
+
+        return {
+            "linear_x": 0.2,
+            "angular_z": -obstacle["angle"] * strength
+        }
+
+    def go_to_target():
+        return {
+            "linear_x": 0.5,
+            "angular_z": -0.8 * fsm.goal[1]
+        }
 
 class FailState(State):
     def on_enter(self, fsm):

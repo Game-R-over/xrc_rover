@@ -38,6 +38,7 @@ setup(
             'odometry_manager = rover_commands.odometry_manager:main',
             'vision = rover_commands.vision:main',
             'ultrasonic_node = rover_commands.ultrasonics_sensors_manager:main',
+            'ekf = rover_commands.ekf_node:main',
         ],
     },
 )
