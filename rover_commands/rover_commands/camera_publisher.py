@@ -1,18 +1,15 @@
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import String
-from sensor_msgs.msg import CompressedImage
-import cv2
-from cv_bridge import CvBridge
+import subprocess
 
 class CameraPublisherNode(Node):
     def __init__(self):
         super().__init__('camera_publisher')
 
-        self.cap = None
-        self.timer = None
+        self.gst_process = None
         self.current_mode = None
-        self.bridge = CvBridge()
+        self.pc_ip = '10.132.166.188'
 
         self.mode_subscriber = self.create_subscription(
             String,
@@ -20,16 +17,9 @@ class CameraPublisherNode(Node):
             self.callback_mode,
             10
         )
-        
-        # Publish using standard ROS 2 CompressedImage
-        self.image_publisher = self.create_publisher(
-            CompressedImage,
-            '/camera/image_raw/compressed',
-            10
-        )
 
         self.launch('navigation')
-        self.get_logger().info('Camera node ready (ROS 2 Native)')
+        self.get_logger().info('Camera node ready')
 
     def callback_mode(self, msg):
         if msg.data == self.current_mode:
@@ -39,58 +29,55 @@ class CameraPublisherNode(Node):
     def launch(self, mode):
         self.stop()
         
-        self.cap = cv2.VideoCapture(0)
-        
         if mode == 'navigation':
-            self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 320)
-            self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 240)
-            self.cap.set(cv2.CAP_PROP_FPS, 30)
-            fps = 30
+            pipeline = self.navigation_pipeline()
         elif mode == 'autonomy':
-            self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
-            self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
-            self.cap.set(cv2.CAP_PROP_FPS, 5)
-            fps = 5
+            pipeline = self.autonomy_pipeline()
         else:
             self.get_logger().warn(f'Unknown mode: {mode}')
             return
-            
+        
+        self.gst_process = subprocess.Popen(
+            ['gst-launch-1.0'] + pipeline.split(),
+            stdout=subprocess.DEVNULL
+            # stderr is left un-redirected so it prints to the terminal for debugging!
+        )
+        
         self.current_mode = mode
-        self.timer = self.create_timer(1.0 / fps, self.timer_callback)
-        self.get_logger().info(f'Started mode: {mode} at {fps} FPS')
-
-    def timer_callback(self):
-        if not self.cap or not self.cap.isOpened():
-            return
-            
-        ret, frame = self.cap.read()
-        if ret:
-            # Compress natively to reduce Wi-Fi bandwidth
-            # Use lower quality for navigation (high FPS), higher for autonomy (low FPS)
-            quality = 60 if self.current_mode == 'navigation' else 80
-            encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), quality]
-            
-            _, jpeg_data = cv2.imencode('.jpg', frame, encode_param)
-            
-            # Manually construct CompressedImage to avoid cv_bridge overhead
-            msg = CompressedImage()
-            msg.header.stamp = self.get_clock().now().to_msg()
-            msg.format = "jpeg"
-            msg.data = jpeg_data.tobytes()
-            
-            self.image_publisher.publish(msg)
+        self.get_logger().info(f'Started mode: {mode}')
 
     def stop(self):
-        if self.timer is not None:
-            self.timer.cancel()
-            self.timer = None
-        if self.cap is not None:
-            self.cap.release()
-            self.cap = None
+        if self.gst_process is not None:
+            self.gst_process.terminate()
+            self.gst_process.wait()
+            self.gst_process = None
+
+    def navigation_pipeline(self):
+        return (
+            f'v4l2src device=/dev/video0 ! '
+            f'video/x-raw,width=320,height=240,framerate=30/1 ! '
+            f'videoconvert ! '
+            f'x264enc tune=zerolatency bitrate=500 speed-preset=superfast key-int-max=15 ! ' 
+            f'mpegtsmux ! '
+            f'udpsink host={self.pc_ip} port=5000'
+        )
+
+    def autonomy_pipeline(self):
+        return (
+            f'v4l2src device=/dev/video0 ! '
+            f'video/x-raw,width=1280,height=720,framerate=30/1 ! '
+            f'videorate ! '
+            f'video/x-raw,framerate=5/1 ! '
+            f'videoconvert ! '
+            f'x264enc tune=zerolatency bitrate=2000 speed-preset=superfast key-int-max=10 ! '
+            f'mpegtsmux ! '
+            f'udpsink host={self.pc_ip} port=5000'
+        )
 
     def destroy_node(self):
         self.stop()
         super().destroy_node()
+
 
 def main():
     rclpy.init()

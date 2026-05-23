@@ -1,6 +1,6 @@
 import rclpy
 from rclpy.node import Node
-from sensor_msgs.msg import Image, CompressedImage
+from sensor_msgs.msg import Image, CompressedImage, PointCloud2, PointField
 from std_msgs.msg import String
 from cv_bridge import CvBridge
 from rclpy.qos import qos_profile_sensor_data
@@ -107,6 +107,12 @@ class VisionNode(Node):
             10
         )
         
+        self.pc_publisher = self.create_publisher(
+            PointCloud2,
+            '/camera/depth/color/points',
+            10
+        )
+        
         self.start('navigation')
 
     def callback_image(self, msg):
@@ -176,6 +182,57 @@ class VisionNode(Node):
             if USE_INVERTED_DEPTH:
                 depth_map = 1.0 - depth_map
             depth_map = smooth_depth(depth_map)
+
+            # --- Nav2 Perception Bridge: MiDaS to PointCloud2 ---
+            MAX_DEPTH = 5.0 # meters (heuristic maximum range)
+            metric_depth = depth_map * MAX_DEPTH
+            
+            # Intrinsics approximation
+            width, height = FRAME[0], FRAME[1]
+            cx, cy = width / 2.0, height / 2.0
+            fx = width * 0.8
+            fy = width * 0.8
+            
+            # Vectorized projection
+            u, v = np.meshgrid(np.arange(width), np.arange(height))
+            Z = metric_depth
+            X = (u - cx) * Z / fx
+            Y = (v - cy) * Z / fy
+            
+            # Filter obstacles (Remove ground and sky)
+            mask = (Y < 0.15) & (Z > 0.3) & (Z < 4.5)
+            
+            pts = np.stack((X[mask], Y[mask], Z[mask]), axis=-1)
+            
+            # Convert to ROS camera_link conventions (X forward, Y left, Z up)
+            if len(pts) > 0:
+                ros_pts = np.empty_like(pts, dtype=np.float32)
+                ros_pts[:, 0] = pts[:, 2]   # x = Z
+                ros_pts[:, 1] = -pts[:, 0]  # y = -X
+                ros_pts[:, 2] = -pts[:, 1]  # z = -Y
+                
+                # Create PointCloud2 msg
+                pc_msg = PointCloud2()
+                if hasattr(self, 'last_msg_stamp'):
+                    pc_msg.header.stamp = self.last_msg_stamp
+                else:
+                    pc_msg.header.stamp = self.get_clock().now().to_msg()
+                pc_msg.header.frame_id = "camera_link"
+                pc_msg.height = 1
+                pc_msg.width = len(ros_pts)
+                pc_msg.is_dense = False
+                pc_msg.is_bigendian = False
+                
+                pc_msg.fields = [
+                    PointField(name='x', offset=0, datatype=PointField.FLOAT32, count=1),
+                    PointField(name='y', offset=4, datatype=PointField.FLOAT32, count=1),
+                    PointField(name='z', offset=8, datatype=PointField.FLOAT32, count=1)
+                ]
+                pc_msg.point_step = 12
+                pc_msg.row_step = 12 * len(ros_pts)
+                pc_msg.data = ros_pts.tobytes()
+                
+                self.pc_publisher.publish(pc_msg)
 
             # Visualization
             vis = frame_resized.copy()

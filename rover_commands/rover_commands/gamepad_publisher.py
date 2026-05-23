@@ -47,65 +47,7 @@ class GamepadPublisher(Node):
         
         self.gamepad_subscriber = self.create_subscription(
             GamepadData,
-            'gamepad_input',
-            self.get_user_input,
-            10
-        )
-
-        self.gamepad_race_subscriber = self.create_subscription(
-            Int32,
-            'gamepad_race_input',
-            self.get_race_input,
-            10
-        )
-
-
-        self.arm_position.x = 30.
-        self.arm_position.y = -20.
-
-    def validate_cordinates(self):
-
-        if self.arm_position.x < 0:
-            self.arm_position.x = max(self.arm_position.x, self.X_ARM_MIN)
-        if self.arm_position.y < 0:
-            self.arm_position.y = max(self.arm_position.y, self.Y_ARM_MIN)
-
-        origine_distance = math.sqrt(self.arm_position.x**2+self.arm_position.y**2)
-
-        if origine_distance > self.RADIUS:
-          self.arm_position.x =  self.arm_position.x / origine_distance * self.RADIUS
-          self.arm_position.y = self.arm_position.y / origine_distance * self.RADIUS
-
-
-    def get_race_input(self, msg):
-        if msg.data == 0:
-            self.RACE_MODE =0
-        else :
-            self.RACE_MODE = 1
-        self.get_logger().info(f'race mode received\n\tmode:{self.RACE_MODE}')
-    
-
-    def get_user_input(self, msg):
-
-        # DCs + Servos
-
-        if self.RACE_MODE == 0:
-            self.data.y_speed = msg.axis_right_y if abs(msg.axis_right_y) > 0.05 else 0.0
-            self.data.x_angle = msg.axis_right_x if abs(msg.axis_right_x) > 0.05 else 0.0
-     
-        else: 
-            self.data.y_speed = msg.axis_right_y if abs(msg.axis_right_y) > 0.05 else 0.0
-            if abs(msg.axis_right_x) > 0.7:
-                self.data.x_angle = msg.axis_right_x -msg.axis_right_x/abs(msg.axis_right_x) * 0.7  
-            else: 
-                self.data.x_angle = 0.0
-
-        self.user_input_wheels_publisher.publish(self.data)
-        self.get_logger().info(f'Current data:\n\tspeed:{self.data.y_speed}\n\tangle:{self.data.x_angle}')
-        
-
-
-        # ARM Angle
+          
     
         if msg.trigger_left > 0.5:
             self.arm_base_angle = max(self.arm_base_angle + self.ANGLE_INCREMENT, self.MIN_ARM_BASE_ANGLE)

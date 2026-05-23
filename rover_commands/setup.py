@@ -21,6 +21,10 @@ setup(
             os.path.join('share', package_name, 'urdf'),
             glob('urdf/*')
         ),
+        (
+            os.path.join('share', package_name, 'config'),
+            glob('config/*.yaml')
+        ),
     ],
     install_requires=['setuptools'],
     zip_safe=True,
@@ -39,6 +43,7 @@ setup(
             'vision = rover_commands.vision:main',
             'ultrasonic_node = rover_commands.ultrasonics_sensors_manager:main',
             'ekf = rover_commands.ekf_node:main',
+            'aruco_detector = rover_commands.aruco_detector:main',
         ],
     },
 )
