@@ -1,1 +1,4 @@
-float64 dummy
+float64 x
+float64 y
+float64 z
+char type
