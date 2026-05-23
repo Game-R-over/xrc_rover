@@ -75,6 +75,28 @@ public:
 			RCLCPP_INFO(this->get_logger(), "[DISCARD] Received servo: \"%s\"", data.c_str());
 			return;
 		}
+		if(data.size() < 4) { return; }
+		if(data.at(3) == 'a' || data.at(3) == 'g' || data.at(3) == 'm') {
+			auto msg = custom_msg::msg::MPUData();
+			char type = data.at(3);
+			if(data.size() < 6) { return; }
+			std::istringstream iss(data.substr(5));
+			iss >> msg.x >> msg.y >> msg.z;
+			msg.type = (uint8_t)type;
+			this->_mpu_sensor_publisher->publish(msg);
+			RCLCPP_INFO(this->get_logger(), "[MPU] type:%c x:%.2f y:%.2f z:%.2f", type, msg.x, msg.y, msg.z);
+			return;
+		}
+		
+		if(data.at(3) == 'V') {
+        	auto msg = custom_msg::msg::DCSpeed();
+        	std::istringstream iss(data.substr(5));
+        	iss >> msg.dc >> msg.speed;
+        	this->_dc_publisher->publish(msg);
+        	RCLCPP_INFO(this->get_logger(), "[DC] dc:%d speed:%.2f", msg.dc, msg.speed);
+        return;
+    	}
+    	RCLCPP_INFO(this->get_logger(), "[DISCARD] Received: \"%s\"", data.c_str());
 		// TODO: Add handling for MPU
 		if(data.at(3) != 'M') {
 			RCLCPP_INFO(this->get_logger(), "[DISCARD] Received: \"%s\"", data.c_str());
@@ -82,7 +104,7 @@ public:
 		}
 		int dc = data.at(5) - '0';
 		int speed = std::stoi(data.substr(7));
-
+		
 		RCLCPP_INFO(this->get_logger(), "[INFO] Received dc: %d, speed: %d\"", dc, speed);
     }
 

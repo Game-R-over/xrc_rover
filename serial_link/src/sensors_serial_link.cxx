@@ -28,7 +28,16 @@ public:
 			return;
 		}
 		// TODO: Add something
-    }
+		if(data.substr(3, 2) == "US") { 
+        auto msg = custom_msg::msg::UltrasonicDistance();
+        std::istringstream iss(data.substr(6));
+        iss >> msg.sensor >> msg.distance;
+        this->_ultrasonic_sensors_publisher->publish(msg);
+        RCLCPP_INFO(this->get_logger(), "[US] sensor:%d distance:%.2f", msg.sensor, msg.distance);
+        return;
+    	}
+    	RCLCPP_INFO(this->get_logger(), "[DISCARD] Received: \"%s\"", data.c_str());
+	}
 
 private:
 	rclcpp::Publisher<custom_msg::msg::UltrasonicDistance>::SharedPtr	_ultrasonic_sensors_publisher;

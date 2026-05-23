@@ -57,7 +57,15 @@ public:
 		}
 		int dc = data.at(7) - '0';
 		int speed = std::stoi(data.substr(9));
-
+		if(data.at(3) == 'V') {
+        auto msg = custom_msg::msg::DCSpeed();
+        std::istringstream iss(data.substr(5));
+        iss >> msg.dc >> msg.speed;
+        this->_dc_publisher->publish(msg);
+        RCLCPP_INFO(this->get_logger(), "[DC] dc:%d speed:%.2f", msg.dc, msg.speed);
+        return;
+    	}
+    	RCLCPP_INFO(this->get_logger(), "[DISCARD] Received: \"%s\"", data.c_str());
 		RCLCPP_INFO(this->get_logger(), "[INFO] Received dc: %d, speed: %d\"", dc, speed);
     }
 
