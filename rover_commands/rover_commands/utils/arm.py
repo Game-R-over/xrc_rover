@@ -6,7 +6,8 @@ def clamp(value, m, M):
 class Vec2:
     x: float = 0
     y: float = 0
-
+     
+    
     def __init__(self, x: float, y: float):
         self.x = x
         self.y = y
@@ -24,44 +25,68 @@ class Vec2:
         return f'( {self.x}, {self.y} )'
 
 class ArmData:
-    length: float = 15
+    r1: float = 22
+    r2: float = 31
     angles: list[float] = [0, 0]
+
+    BETA_INITIAL= 155#(0's servo)
+    ALPHA_INITIAL = 90
+
 
     def cumulativeAngle(self, num: int) -> float:
         return sum(self.angles[:num + 1])
 
     def computeXY(self) -> Vec2:
         return Vec2(
-            self.length * math.cos(self.cumulativeAngle(0))
-                + self.length * math.cos(self.cumulativeAngle(1)),
-            self.length * math.sin(self.cumulativeAngle(0))
-                + self.length * math.sin(self.cumulativeAngle(1))
+            self.r1 * math.sin(self.cumulativeAngle(0))
+            + self.r2 * math.sin(self.cumulativeAngle(1)),
+            self.r1 * math.cos(self.cumulativeAngle(0))
+            + self.r2 * math.cos(self.cumulativeAngle(1))
         )
 
     def computeAngles(self, coords: Vec2):
+        x1 = coords.x
+        y1 = coords.y
+        print(f"x = {x1} et y = {y1}")
 
-        k = coords.r() / (2 * self.length)
-        if k > 1:
-            coords.x /= k
-            coords.y /= k
+        r1 = self.r1
+        r2 = self.r2
 
-        # Angle between the two segments
-        cos_beta = clamp(
-            (coords.rSquared() - 2 * self.length * self.length) / (2 * self.length * self.length),
-            -1.0,
-            1.0
-        )
-        self.angles[1] = -math.acos(cos_beta)
+        k = math.sqrt(x1**2 + y1**2)
 
-        # Base angle
-        k1 = self.length + self.length * math.cos(self.angles[1])
-        k2 = self.length * math.sin(self.angles[1])
+        # Clampage si hors portée
+        if k > (r1 + r2):
+            x1 = x1 * (r1 + r2) / k
+            y1 = y1 * (r1 + r2) / k
+            k = r1 + r2
 
-        self.angles[0] = coords.phi() - math.atan2(k2, k1)
-        self.angles[1] *= -1
+        # Angle β (segment 2 relatif au segment 1)
+        cos_beta = (x1**2 + y1**2 - r1**2 - r2**2) / (2 * r1 * r2)
+        cos_beta = clamp(cos_beta, -1, 1)
+        self.angles[1] = math.acos(cos_beta)
+
+        # gamma = angle depuis axe Y vers le point cible (cohérent avec computeXY)
+        gamma = math.atan2(x1, y1)
+
+        # alpha = décalage angulaire dû au segment 2
+        alpha = math.atan2(r2 * math.sin(self.angles[1]),
+                           r1 + r2 * math.cos(self.angles[1]))
+
+        self.angles[0] = gamma - alpha 
+        #changement for servo
+        
+        self.angles[0] = self.ALPHA_INITIAL-self.angles[0]*180/math.pi 
+
+        self.angles[1] = self.BETA_INITIAL-self.angles[1] *180/math.pi
+
+        if self.angles[0] < 0 :
+            self.angles[0] = 0.
+        
+        if self.angles[1] < 0 :
+            self.angles[1] = 0. 
 
     def angleStr(self, angle: float):
-        return '0' if angle == 0 else f'{angle / math.pi}π'
+        return f'{angle} rad'
 
     def str(self):
         return f'''Angles:
@@ -71,9 +96,7 @@ class ArmData:
 
 if __name__ == '__main__':
     arm = ArmData()
-    arm.computeAngles(
-        Vec2(2, 0)
-    )
-
+    arm.computeAngles(Vec2(10,5
+                           ))
     print(arm.computeXY())
     print(arm.str())

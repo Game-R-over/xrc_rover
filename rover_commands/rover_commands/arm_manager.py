@@ -29,6 +29,7 @@ class ArmManager(Node):
     CLAW_SERVO = 1
     ARM_SERVOS = (2, 3)
     BASE_SERVO = 4
+    
 
     arm = ArmData()
 
@@ -80,16 +81,22 @@ class ArmManager(Node):
 
     def arm_position_update_listener_callback(self, msg):
 
+        self.get_logger().info(f'Current data:\nx:{msg.x}\ny:{msg.y}')
+
         self.arm.computeAngles(
             V2(msg.x, msg.y)
         )
+
         for i in range(len(self.ARM_SERVOS)):
             self.data['servo_angle_update'].angle = self.arm.angles[i]
             self.data['servo_angle_update'].servo = self.ARM_SERVOS[i]
             self.publish('servo_angle_update')
 
-        self.data['joint_state'].header.stamp = self.get_clock().now().to_msg()
-        self.data['joint_state'].name = ['shoulder_joint', 'elbow_joint']
+        """self.data['joint_state'].header.stamp = self.get_clock().now().to_msg()
+        self.data['joint_state'].name = ['shoulder_joint', 'elbow_joint']"""
+        self.get_logger().info(f'Current data:\nangle0:{self.arm.angles[0]}\nangle1:{self.arm.angles[1]}')
+        
+        # ARM Angle
         self.data['joint_state'].position = self.arm.angles
 
         self.publish('joint_state')
@@ -99,9 +106,9 @@ class ArmManager(Node):
         self.data['servo_angle_update'].servo = self.BASE_SERVO
         self.publish('servo_angle_update')
 
-        self.data['joint_state'].header.stamp = self.get_clock().now().to_msg()
+        """self.data['joint_state'].header.stamp = self.get_clock().now().to_msg()
         self.data['joint_state'].name = ['arm_yaw_joint']
-        self.data['joint_state'].position = self.data['servo_angle_update'].angle
+        self.data['joint_state'].position = self.data['servo_angle_update'].angle"""
 
         self.publish('joint_state')
 
