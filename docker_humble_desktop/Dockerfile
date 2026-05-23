@@ -16,7 +16,18 @@ RUN apt-get install -y curl
 RUN apt-get install -y ros-humble-rosbridge-suite
 
 # Install g++ 12 (for std::expected)
-RUN apt-get install -y g++-12 libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly
+RUN apt-get install -y \
+	g++-12 \
+	libgstreamer1.0-dev \
+	libgstreamer-plugins-base1.0-dev \
+	gstreamer1.0-plugins-good \
+	gstreamer1.0-plugins-bad \
+	gstreamer1.0-plugins-ugly \
+	gstreamer1.0-tools \
+	gstreamer1.0-plugins-base \
+	ros-humble-navigation2 \
+	ros-humble-nav2-bringup
+
 RUN usermod -a -G dialout xplore
 #RUN pip install opencv-python torch torchvision ultralytics
 
@@ -38,4 +49,3 @@ COPY . .
 
 # Set a directory to build the project
 WORKDIR /home/$USERNAME/dev_ws
-
